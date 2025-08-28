@@ -1,76 +1,126 @@
-<!doctype html>
-<html lang="pt-br">
+<!DOCTYPE html>
+<html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clube VIP</title>
+  <!-- VERSAO 4 -->
   <style>
-    :root { --bg:#f7f7f8; --card:#fff; --txt:#111; --muted:#666; --border:#e6e6e6; }
-    html,body{height:100%}
-    body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-    .wrap{max-width:720px;margin:0 auto;padding:24px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px}
-    h1{font-size:28px;margin:0 0 12px}
-    p{margin:0 0 16px;color:var(--muted)}
-    label{display:block;font-size:14px;margin:10px 0 6px}
-    input{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;font-size:16px}
-    .row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
-    button{padding:10px 14px;border-radius:10px;border:0;background:#111;color:#fff;font-size:16px;cursor:pointer}
-    .muted{color:var(--muted);font-size:13px;margin-top:8px}
-    code{background:#f1f1f1;padding:2px 6px;border-radius:6px}
+    body{font-family:Arial, sans-serif; margin:20px; padding:0;}
+    .card{max-width:600px;margin:auto;border:1px solid #ddd;border-radius:12px;padding:16px}
+    label{font-weight:bold;margin-top:10px;display:block}
+    input,select,textarea,button{width:100%;padding:10px;margin:6px 0;border:1px solid #ccc;border-radius:8px}
+    button{background:#111;color:#fff;border:none;cursor:pointer}
+    .ok{color:green;font-weight:bold}
+    .bad{color:red;font-weight:bold}
+    .muted{color:#666;font-size:13px}
   </style>
-  <script>
-    // SUA URL /exec (já preenchida):
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxnkSn7_NRsi_tVHBeq1msqtMbTAbmQgN7Z9M3oiyVltZW3Pak0njp1vLsxURrudYEHnQ/exec";
-
-    // Redireciona automaticamente quando houver parâmetros (?t=... ou ?page=...)
-    (function(){
-      const qs = window.location.search;
-      if (qs && qs.length > 1) {
-        window.location.replace(SCRIPT_URL + qs);
-      }
-    })();
-  </script>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>Verificar carteirinha</h1>
-      <p>Escaneie o QR da carteirinha ou digite o token abaixo.</p>
-      <label>Token</label>
-      <div class="row">
-        <input id="tok" placeholder="ex.: ABC123def4">
-        <button onclick="irToken()">Ver status</button>
-      </div>
+  <div class="card">
+    <h2>Clube VIP</h2>
+    <p id="modo">Carregando...</p>
 
-      <hr style="border:0;border-top:1px solid #eee;margin:22px 0">
-
-      <h1>Painel do parceiro</h1>
-      <p>Use para registrar um consumo. Informe seu ID de parceiro (ex.: P001).</p>
-      <label>ID do parceiro</label>
-      <div class="row">
-        <input id="pid" placeholder="ex.: P001">
-        <button onclick="irParceiro()">Abrir painel</button>
+    <div id="painel-parceiro" style="display:none">
+      <label>PIN do parceiro</label>
+      <input id="pin" type="password" placeholder="PIN">
+      <label>Número VIP ou Token (ou cole link do QR)</label>
+      <input id="entrada" placeholder="ex.: VIP001 ou gZjWpC607G">
+      <button onclick="consultar()">Consultar status</button>
+      <div id="status"></div>
+      <div id="registro" style="display:none">
+        <label>Oferta</label>
+        <select id="oferta"></select>
+        <label>Atendente</label>
+        <input id="atendente">
+        <label>Observação</label>
+        <textarea id="obs"></textarea>
+        <button onclick="enviar()">Registrar consumo</button>
       </div>
+      <div id="msg" class="muted"></div>
+    </div>
 
-      <div class="muted">
-        Dica: atalho do parceiro = <code>?page=registrar&parceiro=P001</code>
-      </div>
+    <div id="painel-status" style="display:none">
+      <h3>Status da carteirinha</h3>
+      <div id="status-simples"></div>
     </div>
   </div>
 
   <script>
-    function irToken(){
-      var t = (document.getElementById('tok').value || '').trim();
-      if(!t){ alert('Informe o token.'); return; }
-      window.location.href = '?t=' + encodeURIComponent(t);
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxnkSn7_NRsi_tVHBeq1msqtMbTAbmQgN7Z9M3oiyVltZW3Pak0njp1vLsxURrudYEHnQ/exec";
+
+    const params = new URLSearchParams(window.location.search);
+    const parceiro = params.get("parceiro");
+    const token = params.get("t");
+    const page = params.get("page");
+
+    // Painel parceiro
+    if (page === "registrar" && parceiro){
+      document.getElementById("modo").innerText = "Painel do Parceiro ("+parceiro+")";
+      document.getElementById("painel-parceiro").style.display="block";
+      carregarOfertas(parceiro);
     }
-    function irParceiro(){
-      var p = (document.getElementById('pid').value || '').trim();
-      if(!p){ alert('Informe o ID do parceiro (ex.: P001).'); return; }
-      window.location.href = '?page=registrar&parceiro=' + encodeURIComponent(p);
+    // Status simples
+    else if (token){
+      document.getElementById("modo").innerText = "Status do Morador";
+      document.getElementById("painel-status").style.display="block";
+      consultarStatusSimples(token);
+    }
+    else {
+      document.getElementById("modo").innerText = "Use ?t=TOKEN ou ?page=registrar&parceiro=P001";
+    }
+
+    async function carregarOfertas(parceiroID){
+      // consulta ofertas via Apps Script
+      const r = await fetch(SCRIPT_URL+"?action=ofertas&parceiro="+encodeURIComponent(parceiroID));
+      const j = await r.json();
+      const sel = document.getElementById("oferta");
+      sel.innerHTML = "";
+      j.forEach(o=>{
+        const opt=document.createElement("option");
+        opt.value=o.OfertaID;
+        opt.textContent=o.Titulo;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function consultar(){
+      const q = document.getElementById("entrada").value.trim();
+      if(!q){ alert("Digite o número VIP ou Token"); return; }
+      const url = SCRIPT_URL+"?action=status&q="+encodeURIComponent(q);
+      let r = await fetch(url); let j = await r.json();
+      const box=document.getElementById("status");
+      if(j.ok){
+        box.innerHTML='<div class="ok">'+j.msg+' — '+j.numero+' — '+j.nome+' — até '+j.validade+'</div>';
+        document.getElementById("registro").style.display="block";
+      } else {
+        box.innerHTML='<div class="bad">'+j.msg+'</div>';
+        document.getElementById("registro").style.display="none";
+      }
+    }
+
+    async function enviar(){
+      const pin=document.getElementById("pin").value.trim();
+      const entrada=document.getElementById("entrada").value.trim();
+      const oferta=document.getElementById("oferta").value;
+      const atendente=document.getElementById("atendente").value.trim();
+      const obs=document.getElementById("obs").value.trim();
+      const q=new URLSearchParams({action:"salvar",parceiro, pin, token:entrada, oferta, atendente, obs});
+      let r=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:q.toString()});
+      let j=await r.json();
+      document.getElementById("msg").innerHTML=j.ok?'<div class="ok">'+j.msg+'</div>':'<div class="bad">'+j.msg+'</div>';
+    }
+
+    async function consultarStatusSimples(token){
+      const url = SCRIPT_URL+"?action=status&q="+encodeURIComponent(token);
+      let r = await fetch(url); let j = await r.json();
+      const box=document.getElementById("status-simples");
+      if(j.ok){
+        box.innerHTML='<div class="ok">'+j.msg+' — '+j.numero+' — '+j.nome+' — até '+j.validade+'</div>';
+      } else {
+        box.innerHTML='<div class="bad">'+j.msg+'</div>';
+      }
     }
   </script>
-  <noscript>Ative o JavaScript para usar esta página.</noscript>
 </body>
 </html>

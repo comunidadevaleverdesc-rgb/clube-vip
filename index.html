@@ -1,45 +1,54 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Clube VIP</title>
-  <!-- VERSAO 4 -->
+  <!-- VERSAO 6 -->
   <style>
-    body{font-family:Arial, sans-serif; margin:20px; padding:0;}
-    .card{max-width:600px;margin:auto;border:1px solid #ddd;border-radius:12px;padding:16px}
+    body{font-family:Arial, sans-serif; margin:20px;}
+    .card{max-width:640px;margin:auto;border:1px solid #ddd;border-radius:12px;padding:16px}
     label{font-weight:bold;margin-top:10px;display:block}
     input,select,textarea,button{width:100%;padding:10px;margin:6px 0;border:1px solid #ccc;border-radius:8px}
     button{background:#111;color:#fff;border:none;cursor:pointer}
     .ok{color:green;font-weight:bold}
-    .bad{color:red;font-weight:bold}
+    .bad{color:#b00020;font-weight:bold}
     .muted{color:#666;font-size:13px}
   </style>
 </head>
 <body>
   <div class="card">
     <h2>Clube VIP</h2>
-    <p id="modo">Carregando...</p>
+    <p id="modo">Carregando…</p>
 
+    <!-- Painel do parceiro (tudo em uma tela) -->
     <div id="painel-parceiro" style="display:none">
       <label>PIN do parceiro</label>
-      <input id="pin" type="password" placeholder="PIN">
-      <label>Número VIP ou Token (ou cole link do QR)</label>
-      <input id="entrada" placeholder="ex.: VIP001 ou gZjWpC607G">
+      <input id="pin" type="password" placeholder="PIN"/>
+
+      <label>Número VIP ou Token (ou cole o link do QR)</label>
+      <input id="entrada" placeholder="ex.: VIP001 ou gZjWpC607G ou ...?t=gZjWpC607G"/>
+
       <button onclick="consultar()">Consultar status</button>
-      <div id="status"></div>
+      <div id="status" class="muted"></div>
+
       <div id="registro" style="display:none">
         <label>Oferta</label>
         <select id="oferta"></select>
+
         <label>Atendente</label>
-        <input id="atendente">
-        <label>Observação</label>
-        <textarea id="obs"></textarea>
+        <input id="atendente" placeholder="Nome do atendente"/>
+
+        <label>Observação (opcional)</label>
+        <textarea id="obs" rows="2"></textarea>
+
         <button onclick="enviar()">Registrar consumo</button>
       </div>
+
       <div id="msg" class="muted"></div>
     </div>
 
+    <!-- Painel simples de status (quando vem ?t=TOKEN) -->
     <div id="painel-status" style="display:none">
       <h3>Status da carteirinha</h3>
       <div id="status-simples"></div>
@@ -47,78 +56,176 @@
   </div>
 
   <script>
+    // SUA URL DO APPS SCRIPT (exec) — já colocada correta:
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxnkSn7_NRsi_tVHBeq1msqtMbTAbmQgN7Z9M3oiyVltZW3Pak0njp1vLsxURrudYEHnQ/exec";
 
+    // Lê parâmetros da URL
     const params = new URLSearchParams(window.location.search);
     const parceiro = params.get("parceiro");
     const token = params.get("t");
     const page = params.get("page");
 
-    // Painel parceiro
-    if (page === "registrar" && parceiro){
+    // Decide o modo da página
+    if (page === "registrar" && parceiro) {
       document.getElementById("modo").innerText = "Painel do Parceiro ("+parceiro+")";
-      document.getElementById("painel-parceiro").style.display="block";
+      document.getElementById("painel-parceiro").style.display = "block";
       carregarOfertas(parceiro);
-    }
-    // Status simples
-    else if (token){
+    } else if (token) {
       document.getElementById("modo").innerText = "Status do Morador";
-      document.getElementById("painel-status").style.display="block";
+      document.getElementById("painel-status").style.display = "block";
       consultarStatusSimples(token);
-    }
-    else {
+    } else {
       document.getElementById("modo").innerText = "Use ?t=TOKEN ou ?page=registrar&parceiro=P001";
     }
 
+    // Carrega ofertas do parceiro (JSON vindo do Apps Script)
     async function carregarOfertas(parceiroID){
-      // consulta ofertas via Apps Script
-      const r = await fetch(SCRIPT_URL+"?action=ofertas&parceiro="+encodeURIComponent(parceiroID));
-      const j = await r.json();
       const sel = document.getElementById("oferta");
       sel.innerHTML = "";
-      j.forEach(o=>{
-        const opt=document.createElement("option");
-        opt.value=o.OfertaID;
-        opt.textContent=o.Titulo;
+      try{
+        const r = await fetch(SCRIPT_URL + "?action=ofertas&parceiro=" + encodeURIComponent(parceiroID), { cache: "no-store" });
+        const txt = await r.text();
+        let j = null; try { j = JSON.parse(txt); } catch(_){}
+        if(!r.ok){ throw new Error("HTTP " + r.status + " – " + txt.slice(0,200)); }
+        if(!Array.isArray(j)) throw new Error("Resposta inválida de ofertas: " + txt.slice(0,200));
+        j.forEach(o=>{
+          const opt = document.createElement("option");
+          opt.value = o.OfertaID;
+          opt.textContent = o.Titulo;
+          sel.appendChild(opt);
+        });
+      }catch(err){
+        sel.innerHTML = "";
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "Erro ao carregar ofertas: " + err.message;
         sel.appendChild(opt);
-      });
+      }
     }
 
+    // Botão "Consultar status" (robusto: mostra erro mesmo se vier HTML)
     async function consultar(){
       const q = document.getElementById("entrada").value.trim();
-      if(!q){ alert("Digite o número VIP ou Token"); return; }
-      const url = SCRIPT_URL+"?action=status&q="+encodeURIComponent(q);
-      let r = await fetch(url); let j = await r.json();
-      const box=document.getElementById("status");
-      if(j.ok){
-        box.innerHTML='<div class="ok">'+j.msg+' — '+j.numero+' — '+j.nome+' — até '+j.validade+'</div>';
-        document.getElementById("registro").style.display="block";
-      } else {
-        box.innerHTML='<div class="bad">'+j.msg+'</div>';
+      const box = document.getElementById("status");
+      if(!q){ alert("Digite o número VIP, token ou cole o link do QR"); return; }
+      box.className = "muted";
+      box.textContent = "Consultando…";
+      try{
+        const url = SCRIPT_URL + "?action=status&q=" + encodeURIComponent(q);
+        const r = await fetch(url, { cache: "no-store" });
+        const txt = await r.text();
+        let j = null; try { j = JSON.parse(txt); } catch(_){}
+
+        if(!r.ok){
+          box.className = "bad";
+          box.textContent = "Erro HTTP " + r.status + " – " + txt.slice(0,200);
+          document.getElementById("registro").style.display="none";
+          return;
+        }
+
+        if(j && typeof j === "object"){
+          if(j.ok){
+            box.className = "ok";
+            box.textContent = (j.msg||"Válida")
+                              + (j.numero?(" — "+j.numero):"")
+                              + (j.nome?(" — "+j.nome):"")
+                              + (j.validade?(" — até "+j.validade):"");
+            document.getElementById("registro").style.display = "block";
+          } else {
+            box.className = "bad";
+            box.textContent = j.msg || "Inválido";
+            document.getElementById("registro").style.display = "none";
+          }
+        } else {
+          box.className = "bad";
+          box.textContent = "Resposta não-JSON: " + txt.slice(0,200);
+          document.getElementById("registro").style.display="none";
+        }
+      }catch(err){
+        box.className = "bad";
+        box.textContent = "Falha de rede: " + err.message;
         document.getElementById("registro").style.display="none";
       }
     }
 
+    // Envia o registro de consumo
     async function enviar(){
-      const pin=document.getElementById("pin").value.trim();
-      const entrada=document.getElementById("entrada").value.trim();
-      const oferta=document.getElementById("oferta").value;
-      const atendente=document.getElementById("atendente").value.trim();
-      const obs=document.getElementById("obs").value.trim();
-      const q=new URLSearchParams({action:"salvar",parceiro, pin, token:entrada, oferta, atendente, obs});
-      let r=await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:q.toString()});
-      let j=await r.json();
-      document.getElementById("msg").innerHTML=j.ok?'<div class="ok">'+j.msg+'</div>':'<div class="bad">'+j.msg+'</div>';
+      const pin = document.getElementById("pin").value.trim();
+      const entrada = document.getElementById("entrada").value.trim();
+      const oferta = document.getElementById("oferta").value;
+      const atendente = document.getElementById("atendente").value.trim();
+      const obs = document.getElementById("obs").value.trim();
+      const el = document.getElementById("msg");
+
+      if(!pin){ alert("Informe o PIN."); return; }
+      if(!entrada){ alert("Informe Número VIP, Token ou cole o link do QR."); return; }
+      if(!oferta){ alert("Escolha uma oferta."); return; }
+
+      el.className = "muted";
+      el.textContent = "Enviando…";
+      try{
+        const body = new URLSearchParams({
+          action: "salvar",
+          parceiro: parceiro || "",
+          pin, token: entrada, oferta, atendente, obs
+        }).toString();
+
+        const r = await fetch(SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body
+        });
+
+        const txt = await r.text();
+        let j = null; try { j = JSON.parse(txt); } catch(_){}
+        if(!r.ok){
+          el.className = "bad";
+          el.textContent = "Erro HTTP " + r.status + " – " + txt.slice(0,200);
+          return;
+        }
+        if(j && j.ok){
+          el.className = "ok";
+          el.textContent = j.msg || "OK";
+          document.getElementById("obs").value = "";
+          // mantém o campo entrada preenchido para possível novo uso
+        } else {
+          el.className = "bad";
+          el.textContent = (j && j.msg) ? j.msg : ("Resposta não-JSON: " + txt.slice(0,200));
+        }
+      }catch(err){
+        el.className = "bad";
+        el.textContent = "Falha de rede: " + err.message;
+      }
     }
 
+    // Mostra status simples quando abre com ?t=TOKEN
     async function consultarStatusSimples(token){
-      const url = SCRIPT_URL+"?action=status&q="+encodeURIComponent(token);
-      let r = await fetch(url); let j = await r.json();
-      const box=document.getElementById("status-simples");
-      if(j.ok){
-        box.innerHTML='<div class="ok">'+j.msg+' — '+j.numero+' — '+j.nome+' — até '+j.validade+'</div>';
-      } else {
-        box.innerHTML='<div class="bad">'+j.msg+'</div>';
+      const box = document.getElementById("status-simples");
+      box.className = "muted";
+      box.textContent = "Consultando…";
+      try{
+        const url = SCRIPT_URL + "?action=status&q=" + encodeURIComponent(token);
+        const r = await fetch(url, { cache: "no-store" });
+        const txt = await r.text();
+        let j = null; try { j = JSON.parse(txt); } catch(_){}
+        if(!r.ok){
+          box.className = "bad";
+          box.textContent = "Erro HTTP " + r.status + " – " + txt.slice(0,200);
+          return;
+        }
+        if(j && j.ok){
+          box.className = "ok";
+          box.textContent = (j.msg||"Válida")
+                            + (j.numero?(" — "+j.numero):"")
+                            + (j.nome?(" — "+j.nome):"")
+                            + (j.validade?(" — até "+j.validade):"");
+        } else {
+          box.className = "bad";
+          box.textContent = (j && j.msg) ? j.msg : ("Resposta não-JSON: " + txt.slice(0,200));
+        }
+      }catch(err){
+        box.className = "bad";
+        box.textContent = "Falha de rede: " + err.message;
       }
     }
   </script>

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Clube VIP</title>
-  <!-- VERSAO 100 -->
+  <!-- VERSAO 12 -->
   <style>
     :root{--fg:#111;--muted:#666;--ok:#0a7a3b;--bad:#b00020;--bd:#ddd;}
     body{font-family:Arial, sans-serif; margin:20px; color:var(--fg);}
@@ -24,7 +24,7 @@
     <h2>Clube VIP</h2>
     <p id="modo">Carregando…</p>
 
-    <!-- Painel do parceiro (tudo em uma tela) -->
+    <!-- Painel do parceiro -->
     <div id="painel-parceiro" style="display:none">
       <div class="row">
         <div>
@@ -66,19 +66,19 @@
   </div>
 
   <script>
+    /* ====== CONFIG ====== */
     // URL DO SEU APPS SCRIPT (/exec)
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyYICKpi1RdjJGJxanxe7yStnkL6MCr9VWgZR4OuLKRC6Hij3n5bWozLz6Bzi1_b_m93Q/exec";
 
-    // Proxy simples para contornar CORS
-    const viaProxy = (url) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
+    // Proxy para contornar CORS (GET e POST)
+    const viaProxy = (url) => "https://corsproxy.io/?" + encodeURIComponent(url);
 
-    // Lê parâmetros da URL
+    /* ====== MODO DE TELA ====== */
     const params = new URLSearchParams(window.location.search);
     const parceiro = params.get("parceiro");
     const token = params.get("t");
     const page = params.get("page");
 
-    // Decide o modo da página
     if (page === "registrar" && parceiro) {
       document.getElementById("modo").innerText = "Painel do Parceiro ("+parceiro+")";
       document.getElementById("painel-parceiro").style.display = "block";
@@ -91,7 +91,8 @@
       document.getElementById("modo").innerText = "Use ?t=TOKEN ou ?page=registrar&parceiro=P001";
     }
 
-    // Carrega ofertas do parceiro (JSON vindo do Apps Script)
+    /* ====== FUNÇÕES ====== */
+    // Carrega ofertas do parceiro
     async function carregarOfertas(parceiroID){
       const sel = document.getElementById("oferta");
       sel.innerHTML = "";
@@ -117,7 +118,7 @@
       }
     }
 
-    // Botão "Consultar status" (robusto: mostra erro mesmo se vier HTML)
+    // Consulta status (VIP/token/link)
     async function consultar(){
       const q = document.getElementById("entrada").value.trim();
       const box = document.getElementById("status");
@@ -129,14 +130,12 @@
         const r = await fetch(viaProxy(url), { cache: "no-store" });
         const txt = await r.text();
         let j = null; try { j = JSON.parse(txt); } catch(_){}
-
         if(!r.ok){
           box.className = "bad";
           box.textContent = "Erro HTTP " + r.status + " – " + txt.slice(0,200);
           document.getElementById("registro").style.display="none";
           return;
         }
-
         if(j && typeof j === "object"){
           if(j.ok){
             box.className = "ok";
@@ -162,7 +161,7 @@
       }
     }
 
-    // Envia o registro de consumo
+    // Registrar consumo
     async function enviar(){
       const pin = document.getElementById("pin").value.trim();
       const entrada = document.getElementById("entrada").value.trim();
@@ -172,7 +171,7 @@
       const el = document.getElementById("msg");
 
       if(!pin){ alert("Informe o PIN."); return; }
-      if(!entrada){ alert("Informe Número VIP, Token ou cole o link do QR."); return; }
+      if(!entrada){ alert("Informe Número VIP, Token ou link do QR."); return; }
       if(!oferta){ alert("Escolha uma oferta."); return; }
 
       el.className = "muted";
@@ -184,9 +183,8 @@
           pin, token: entrada, oferta, atendente, obs
         }).toString();
 
-        // POST também via proxy para evitar CORS
-        const postUrl = SCRIPT_URL;
-        const proxyPost = "https://api.allorigins.win/raw?url=" + encodeURIComponent(postUrl);
+        // POST via proxy também
+        const proxyPost = viaProxy(SCRIPT_URL);
         const r = await fetch(proxyPost, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -204,7 +202,6 @@
           el.className = "ok";
           el.textContent = j.msg || "OK";
           document.getElementById("obs").value = "";
-          // mantém o campo entrada para facilitar múltiplos usos na sequência
         } else {
           el.className = "bad";
           el.textContent = (j && j.msg) ? j.msg : ("Resposta não-JSON: " + txt.slice(0,200));
@@ -215,7 +212,7 @@
       }
     }
 
-    // Mostra status simples quando abre com ?t=TOKEN
+    // Status simples (?t=TOKEN)
     async function consultarStatusSimples(token){
       const box = document.getElementById("status-simples");
       box.className = "muted";

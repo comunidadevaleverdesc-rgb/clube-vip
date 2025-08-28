@@ -1,297 +1,130 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clube VIP</title>
-  <!-- VERSAO 14 (sem URLSearchParams) -->
   <style>
-    :root{--fg:#111;--muted:#666;--ok:#0a7a3b;--bad:#b00020;--bd:#ddd;}
-    body{font-family:Arial, sans-serif; margin:20px; color:var(--fg);}
-    .card{max-width:680px;margin:auto;border:1px solid var(--bd);border-radius:12px;padding:16px}
-    label{font-weight:bold;margin-top:10px;display:block}
-    input,select,textarea,button{width:100%;padding:10px;margin:6px 0;border:1px solid #ccc;border-radius:8px}
-    button{background:#111;color:#fff;border:none;cursor:pointer}
-    .ok{color:var(--ok);font-weight:bold}
-    .bad{color:var(--bad);font-weight:bold}
-    .muted{color:var(--muted);font-size:13px}
-    .row{display:flex;gap:8px}
-    .row > * {flex:1}
+    body { font-family: Arial, sans-serif; margin: 20px; background: #fafafa; }
+    .card { max-width: 520px; margin: auto; background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+    h2 { margin-top: 0; }
+    input, select, textarea, button { width: 100%; padding: 10px; margin: 6px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
+    button { background: #111; color: #fff; border: none; cursor: pointer; }
+    button:hover { opacity: .9; }
+    .msg { margin-top: 10px; font-size: 14px; }
+    .ok { color: #0a7a3b; }
+    .bad { color: #b00020; }
   </style>
 </head>
 <body>
   <div class="card">
     <h2>Clube VIP</h2>
-    <p id="modo">Carregando…</p>
+    <div id="parceiroInfo"></div>
 
-    <!-- Painel do parceiro -->
-    <div id="painel-parceiro" style="display:none">
-      <div class="row">
-        <div>
-          <label>PIN do parceiro</label>
-          <input id="pin" type="password" placeholder="PIN"/>
-        </div>
-        <div>
-          <label>Número VIP ou Token (ou cole o link do QR)</label>
-          <input id="entrada" placeholder="ex.: VIP001 ou gZjWpC607G ou ...?t=gZjWpC607G"/>
-        </div>
-      </div>
+    <label>PIN do parceiro</label>
+    <input type="password" id="pin" placeholder="PIN">
 
-      <div class="row">
-        <button onclick="consultar()">Consultar status</button>
-      </div>
-      <div id="status" class="muted"></div>
+    <label>Número VIP ou Token (ou cole link do QR)</label>
+    <input id="codigo" placeholder="ex.: VIP001 ou gZjWpC607G">
 
-      <div id="registro" style="display:none">
-        <label>Oferta</label>
-        <select id="oferta"></select>
+    <button onclick="consultarStatus()">Consultar status</button>
+    <div id="statusMsg" class="msg"></div>
 
-        <label>Atendente</label>
-        <input id="atendente" placeholder="Nome do atendente"/>
+    <div id="consumoArea" style="display:none">
+      <label>Oferta</label>
+      <select id="oferta"></select>
 
-        <label>Observação (opcional)</label>
-        <textarea id="obs" rows="2"></textarea>
+      <label>Atendente</label>
+      <input id="atendente" placeholder="Nome do atendente">
 
-        <button onclick="enviar()">Registrar consumo</button>
-      </div>
+      <label>Observação (opcional)</label>
+      <textarea id="obs" rows="2"></textarea>
 
-      <div id="msg" class="muted"></div>
-    </div>
-
-    <!-- Painel simples de status (?t=TOKEN) -->
-    <div id="painel-status" style="display:none">
-      <h3>Status da carteirinha</h3>
-      <div id="status-simples" class="muted"></div>
+      <button onclick="registrarConsumo()">Registrar consumo</button>
+      <div id="consumoMsg" class="msg"></div>
     </div>
   </div>
 
   <script>
-    /* ====== CONFIG ====== */
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyYICKpi1RdjJGJxanxe7yStnkL6MCr9VWgZR4OuLKRC6Hij3n5bWozLz6Bzi1_b_m93Q/exec";
+    // === CONFIG: coloque seu Web App URL abaixo ===
+    const API_URL = "https://script.google.com/macros/s/AKfycbyYICKpi1RdjJGJxanxe7yStnkL6MCr9VWgZR4OuLKRC6Hij3n5bWozLz6Bzi1_b_m93Q/exec";
 
-    // helper: codifica objeto -> "k=v&k2=v2"
-    function toFormUrlEncoded(obj){
-      const pares = [];
-      for (const k in obj){
-        if (Object.prototype.hasOwnProperty.call(obj,k)){
-          const v = obj[k] == null ? "" : String(obj[k]);
-          pares.push(encodeURIComponent(k)+"="+encodeURIComponent(v));
+    // pega ?parceiro= da URL
+    const urlParams = new URL(window.location.href).searchParams;
+    const parceiroID = urlParams.get("parceiro") || "P001";
+    document.getElementById("parceiroInfo").innerText = "Painel do Parceiro (" + parceiroID + ")";
+
+    async function consultarStatus(){
+      const codigo = document.getElementById("codigo").value.trim();
+      if(!codigo){ alert("Informe o número VIP ou token"); return; }
+
+      const url = API_URL + "?action=status&token=" + encodeURIComponent(codigo);
+      try {
+        const resp = await fetch(url);
+        const data = await resp.json();
+        const el = document.getElementById("statusMsg");
+        if(data.ok){
+          el.className = "msg ok";
+          el.textContent = data.msg;
+          carregarOfertas();
+          document.getElementById("consumoArea").style.display = "block";
+        } else {
+          el.className = "msg bad";
+          el.textContent = data.msg || "Erro ao consultar";
+          document.getElementById("consumoArea").style.display = "none";
         }
+      } catch(err){
+        document.getElementById("statusMsg").className = "msg bad";
+        document.getElementById("statusMsg").textContent = "Falha de rede: " + err;
       }
-      return pares.join("&");
     }
 
-    // GET passa por proxy (CORS)
-    const viaProxyGET  = (url) => "https://corsproxy.io/?" + encodeURIComponent(url);
-
-    // POST resiliente: 1) direto; 2) corsproxy.io; 3) proxy.cors.sh
-    async function postResiliente(url, bodyURLEncoded){
+    async function carregarOfertas(){
+      const url = API_URL + "?action=ofertas&parceiro=" + encodeURIComponent(parceiroID);
       try{
-        const r = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: bodyURLEncoded
-        });
-        const txt = await r.text();
-        let j=null; try{ j=JSON.parse(txt); }catch(_){}
-        if(!r.ok) throw new Error("HTTP "+r.status+" – "+txt.slice(0,200));
-        if(!j)   throw new Error("Resposta não-JSON: "+txt.slice(0,200));
-        return j;
-      }catch(err1){
-        try{
-          const r = await fetch("https://corsproxy.io/?" + encodeURIComponent(url), {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: bodyURLEncoded
-          });
-          const txt = await r.text();
-          let j=null; try{ j=JSON.parse(txt); }catch(_){}
-          if(!r.ok) throw new Error("HTTP "+r.status+" – "+txt.slice(0,200));
-          if(!j)   throw new Error("Resposta não-JSON: "+txt.slice(0,200));
-          return j;
-        }catch(err2){
-          const r = await fetch("https://proxy.cors.sh/" + url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              "x-cors-api-key": "temporary"
-            },
-            body: bodyURLEncoded
-          });
-          const txt = await r.text();
-          let j=null; try{ j=JSON.parse(txt); }catch(_){}
-          if(!r.ok) throw new Error("HTTP "+r.status+" – "+txt.slice(0,200));
-          if(!j)   throw new Error("Resposta não-JSON: "+txt.slice(0,200));
-          return j;
-        }
-      }
-    }
-
-    /* ====== MODO DE TELA ====== */
-    function getQueryParam(name){
-      const q = window.location.search.substring(1).split("&");
-      for (const p of q){
-        const [k,v] = p.split("=");
-        if (decodeURIComponent(k||"") === name) return decodeURIComponent(v||"");
-      }
-      return "";
-    }
-    const parceiro = getQueryParam("parceiro");
-    const token    = getQueryParam("t");
-    const page     = getQueryParam("page");
-
-    if (page === "registrar" && parceiro) {
-      document.getElementById("modo").innerText = "Painel do Parceiro ("+parceiro+")";
-      document.getElementById("painel-parceiro").style.display = "block";
-      carregarOfertas(parceiro);
-    } else if (token) {
-      document.getElementById("modo").innerText = "Status do Morador";
-      document.getElementById("painel-status").style.display = "block";
-      consultarStatusSimples(token);
-    } else {
-      document.getElementById("modo").innerText = "Use ?t=TOKEN ou ?page=registrar&parceiro=P001";
-    }
-
-    /* ====== FUNÇÕES ====== */
-    // Carrega ofertas do parceiro (GET via proxy)
-    async function carregarOfertas(parceiroID){
-      const sel = document.getElementById("oferta");
-      sel.innerHTML = "";
-      try{
-        const url = SCRIPT_URL + "?action=ofertas&parceiro=" + encodeURIComponent(parceiroID);
-        const r = await fetch(viaProxyGET(url), { cache: "no-store" });
-        const txt = await r.text();
-        let j=null; try{ j=JSON.parse(txt); }catch(_){}
-        if(!r.ok) throw new Error("HTTP " + r.status + " – " + txt.slice(0,200));
-        if(!Array.isArray(j)) throw new Error("Resposta inválida de ofertas: " + txt.slice(0,200));
-        j.forEach(o=>{
+        const resp = await fetch(url);
+        const data = await resp.json();
+        const sel = document.getElementById("oferta");
+        sel.innerHTML = "";
+        data.forEach(o => {
           const opt = document.createElement("option");
           opt.value = o.OfertaID;
           opt.textContent = o.Titulo;
           sel.appendChild(opt);
         });
-      }catch(err){
-        sel.innerHTML = "";
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "Erro ao carregar ofertas: " + err.message;
-        sel.appendChild(opt);
+      }catch(e){
+        console.error("Erro ao carregar ofertas", e);
       }
     }
 
-    // Consulta status (VIP/token/link) — GET via proxy
-    async function consultar(){
-      const q = document.getElementById("entrada").value.trim();
-      const box = document.getElementById("status");
-      if(!q){ alert("Digite o número VIP, token ou cole o link do QR"); return; }
-      box.className = "muted";
-      box.textContent = "Consultando…";
+    async function registrarConsumo(){
+      const payload = {
+        action: "salvar",
+        parceiro: parceiroID,
+        pin: document.getElementById("pin").value.trim(),
+        token: document.getElementById("codigo").value.trim(),
+        oferta: document.getElementById("oferta").value,
+        atendente: document.getElementById("atendente").value.trim(),
+        obs: document.getElementById("obs").value.trim()
+      };
       try{
-        const url = SCRIPT_URL + "?action=status&q=" + encodeURIComponent(q);
-        const r = await fetch(viaProxyGET(url), { cache: "no-store" });
-        const txt = await r.text();
-        let j=null; try{ j=JSON.parse(txt); }catch(_){}
-        if(!r.ok){
-          box.className = "bad";
-          box.textContent = "Erro HTTP " + r.status + " – " + txt.slice(0,200);
-          document.getElementById("registro").style.display="none";
-          return;
-        }
-        if(j && typeof j === "object"){
-          if(j.ok){
-            box.className = "ok";
-            box.textContent = (j.msg||"Válida")
-                              + (j.numero?(" — "+j.numero):"")
-                              + (j.nome?(" — "+j.nome):"")
-                              + (j.validade?(" — até "+j.validade):"");
-            document.getElementById("registro").style.display = "block";
-          } else {
-            box.className = "bad";
-            box.textContent = j.msg || "Inválido";
-            document.getElementById("registro").style.display = "none";
-          }
-        } else {
-          box.className = "bad";
-          box.textContent = "Resposta não-JSON: " + txt.slice(0,200);
-          document.getElementById("registro").style.display="none";
-        }
-      }catch(err){
-        box.className = "bad";
-        box.textContent = "Falha de rede: " + err.message;
-        document.getElementById("registro").style.display="none";
-      }
-    }
-
-    // Registrar consumo — POST resiliente (sem URLSearchParams)
-    async function enviar(){
-      const pin       = document.getElementById("pin").value.trim();
-      const entrada   = document.getElementById("entrada").value.trim();
-      const oferta    = document.getElementById("oferta").value;
-      const atendente = document.getElementById("atendente").value.trim();
-      const obs       = document.getElementById("obs").value.trim();
-      const el        = document.getElementById("msg");
-
-      if(!pin){ alert("Informe o PIN."); return; }
-      if(!entrada){ alert("Informe Número VIP, Token ou link do QR."); return; }
-      if(!oferta){ alert("Escolha uma oferta."); return; }
-
-      el.className = "muted";
-      el.textContent = "Enviando…";
-      try{
-        const body = toFormUrlEncoded({
-          action: "salvar",
-          parceiro: parceiro || "",
-          pin: pin,
-          token: entrada,
-          oferta: oferta,
-          atendente: atendente,
-          obs: obs
+        const resp = await fetch(API_URL, {
+          method: "POST",
+          headers: {"Content-Type":"application/x-www-form-urlencoded"},
+          body: new URLSearchParams(payload).toString()
         });
-
-        const j = await postResiliente(SCRIPT_URL, body);
-
-        if(j && j.ok){
-          el.className = "ok";
-          el.textContent = j.msg || "OK";
-          document.getElementById("obs").value = "";
+        const data = await resp.json();
+        const el = document.getElementById("consumoMsg");
+        if(data.ok){
+          el.className = "msg ok";
+          el.textContent = data.msg;
         } else {
-          el.className = "bad";
-          el.textContent = (j && j.msg) ? j.msg : "Falha ao registrar.";
+          el.className = "msg bad";
+          el.textContent = data.msg || "Erro ao registrar";
         }
-      }catch(err){
-        el.className = "bad";
-        el.textContent = err.message || "Falha de rede.";
-      }
-    }
-
-    // Mostra status simples (?t=TOKEN) — GET via proxy
-    async function consultarStatusSimples(tok){
-      const box = document.getElementById("status-simples");
-      box.className = "muted";
-      box.textContent = "Consultando…";
-      try{
-        const url = SCRIPT_URL + "?action=status&q=" + encodeURIComponent(tok);
-        const r = await fetch(viaProxyGET(url), { cache: "no-store" });
-        const txt = await r.text();
-        let j=null; try{ j=JSON.parse(txt); }catch(_){}
-        if(!r.ok){
-          box.className = "bad";
-          box.textContent = "Erro HTTP " + r.status + " – " + txt.slice(0,200);
-          return;
-        }
-        if(j && j.ok){
-          box.className = "ok";
-          box.textContent = (j.msg||"Válida")
-                            + (j.numero?(" — "+j.numero):"")
-                            + (j.nome?(" — "+j.nome):"")
-                            + (j.validade?(" — até "+j.validade):"");
-        } else {
-          box.className = "bad";
-          box.textContent = (j && j.msg) ? j.msg : ("Resposta não-JSON: " + txt.slice(0,200));
-        }
-      }catch(err){
-        box.className = "bad";
-        box.textContent = "Falha de rede: " + err.message;
+      }catch(e){
+        document.getElementById("consumoMsg").className = "msg bad";
+        document.getElementById("consumoMsg").textContent = "Falha: " + e;
       }
     }
   </script>

@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Clube VIP — Painel do Parceiro</title>
+  <!-- VERSAO: 2025-08-28-blindada -->
   <style>
     :root { --bg:#fafafa; --fg:#111; --muted:#666; --ok:#0a7a3b; --bad:#b00020; --card:#fff; --br:#e8e8e8; }
     *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
@@ -11,19 +12,20 @@
     .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:18px}
     h1{margin:0 0 12px 0;font-size:28px}
     label{font-size:14px;color:var(--muted);display:block;margin:12px 0 6px}
-    input,select,textarea{width:100%;padding:12px;border:1px solid var(--br);border-radius:10px;font-size:16px;background:#fff}
-    button{width:100%;padding:14px;border:0;border-radius:12px;background:#111;color:#fff;font-size:16px}
+    input,select{width:100%;padding:12px;border:1px solid var(--br);border-radius:10px;font-size:16px;background:#fff}
+    button{width:100%;padding:14px;border:0;border-radius:12px;background:#111;color:#fff;font-size:16px;cursor:pointer}
     .row{display:grid;grid-template-columns:1fr;gap:12px}
     @media(min-width:640px){ .row{grid-template-columns:1fr 1fr} }
     .msg{margin:10px 0 0;font-size:14px}
     .ok{color:var(--ok)} .bad{color:var(--bad)} .muted{color:var(--muted)}
+    .small{font-size:12px}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>Clube VIP</h1>
-      <div class="muted" id="partnerTitle">Painel do Parceiro</div>
+      <div id="partnerTitle" class="muted">Painel do Parceiro</div>
 
       <div class="row">
         <div>
@@ -32,13 +34,14 @@
         </div>
         <div>
           <label>Número VIP ou Token (ou cole o link do QR)</label>
-          <input id="entrada" placeholder="ex.: VIP001 ou gAbC123..." />
+          <input id="entrada" placeholder="ex.: VIP001 ou gAbC123... ou https://.../?t=TOKEN" />
         </div>
       </div>
 
       <div style="margin:12px 0">
         <button id="btnConsultar">Consultar status</button>
-        <div class="msg muted" id="retStatus"></div>
+        <div id="retStatus" class="msg muted">—</div>
+        <div class="small muted">Dica: use o <b>TOKEN</b> da coluna A para testar. Se colar o link do QR, eu extraio o <code>?t=</code> automaticamente.</div>
       </div>
 
       <div id="areaRegistro" style="display:none">
@@ -58,120 +61,162 @@
 
         <div style="margin-top:12px">
           <button id="btnRegistrar">Registrar consumo</button>
-          <div class="msg" id="retRegistro"></div>
+          <div id="retRegistro" class="msg muted">—</div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-  // ======= CONFIG =======
-  const EXEC_URL = 'https://script.google.com/macros/s/AKfycbyYICKpi1RdjJGJxanxe7yStnkL6MCr9VWgZR4OuLKRC6Hij3n5bWozLz6Bzi1_b_m93Q/exec';
-  // ======================
+    // ===================== CONFIG =====================
+    const EXEC_URL = 'https://script.google.com/macros/s/AKfycbyYICKpi1RdjJGJxanxe7yStnkL6MCr9VWgZR4OuLKRC6Hij3n5bWozLz6Bzi1_b_m93Q/exec';
+    // ==================================================
 
-  // pega ?parceiro=P001
-  function getParam(name){
-    const m = location.search.match(new RegExp('[?&]'+name+'=([^&#]+)'));
-    return m ? decodeURIComponent(m[1]) : '';
-  }
-  const PARCEIRO_ID = getParam('parceiro') || '';
+    function getParam(name){
+      const m = location.search.match(new RegExp('[?&]'+name+'=([^&#]+)'));
+      return m ? decodeURIComponent(m[1]) : '';
+    }
+    function extrairTokenOuVip(txt){
+      txt = String(txt||'').trim();
+      const m = txt.match(/[?&]t=([^&#]+)/i);
+      return m ? decodeURIComponent(m[1]) : txt;
+    }
+    function setMsg(id, cls, text){
+      const el = document.getElementById(id);
+      el.className = 'msg ' + (cls||'');
+      el.textContent = text;
+    }
 
-  const el = id => document.getElementById(id);
-  const partnerTitle = el('partnerTitle');
-  partnerTitle.textContent = PARCEIRO_ID ? `Painel do Parceiro (${PARCEIRO_ID})` : 'Parceiro não definido';
+    const PARCEIRO_ID = getParam('parceiro');
+    const partnerTitle = document.getElementById('partnerTitle');
+    partnerTitle.textContent = PARCEIRO_ID ? `Painel do Parceiro (${PARCEIRO_ID})` : 'Parceiro não definido';
 
-  // estado
-  let ultimoToken = '';
-  let ultimoStatusOK = false;
+    let ultimoToken = '';
+    let ultimoStatusOK = false;
 
-  function extrairTokenOuVip(txt){
-    txt = (txt||'').trim();
-    const m = txt.match(/[?&]t=([^&#]+)/i);
-    return m ? decodeURIComponent(m[1]) : txt;
-  }
+    async function consultar(){
+      setMsg('retStatus','muted','Consultando...');
+      document.getElementById('retRegistro').textContent = '—';
+      document.getElementById('areaRegistro').style.display = 'none';
+      ultimoToken = '';
+      ultimoStatusOK = false;
 
-  async function consultar(){
-    el('retStatus').className = 'msg muted';
-    el('retStatus').textContent = 'Consultando...';
-    el('retRegistro').textContent = '';
-    el('areaRegistro').style.display = 'none';
-    ultimoToken = '';
-    ultimoStatusOK = false;
-
-    const entrada = extrairTokenOuVip(el('entrada').value);
-    if(!entrada){ el('retStatus').className='msg bad'; el('retStatus').textContent='Informe VIP ou Token.'; return; }
-
-    try{
-      const url = `${EXEC_URL}?action=status&token=${encodeURIComponent(entrada)}`;
-      const r = await fetch(url);
-      const j = await r.json();
-      if(!j.ok){
-        el('retStatus').className='msg bad';
-        el('retStatus').textContent = j.msg || 'Não encontrado.';
+      const entradaCampo = document.getElementById('entrada').value;
+      const entrada = extrairTokenOuVip(entradaCampo);
+      if(!entrada){
+        setMsg('retStatus','bad','Informe VIP ou Token.');
         return;
       }
-      ultimoToken = j.token;
-      ultimoStatusOK = true;
 
-      el('retStatus').className='msg ok';
-      el('retStatus').innerHTML = `Carteirinha válida — até <b>${j.validade||'-'}</b> — <b>${j.numero||''}</b> ${j.nome?(' — '+j.nome):''}`;
+      try{
+        const url = EXEC_URL + '?action=status&token=' + encodeURIComponent(entrada);
+        const r = await fetch(url, { method:'GET', cache:'no-store' });
+        const txt = await r.text();
 
-      // carrega ofertas do parceiro
-      const ro = await fetch(`${EXEC_URL}?action=ofertas&parceiro=${encodeURIComponent(PARCEIRO_ID)}`);
-      const arr = await ro.json();
-      el('oferta').innerHTML = arr.map(o=>`<option value="${o.OfertaID}">${o.Titulo}</option>`).join('') || '<option value="">(sem ofertas)</option>';
+        if(!r.ok){
+          setMsg('retStatus','bad',`Erro HTTP ${r.status}: ${txt.slice(0,180)}`);
+          return;
+        }
 
-      el('areaRegistro').style.display = 'block';
-    }catch(err){
-      el('retStatus').className='msg bad';
-      el('retStatus').textContent = 'Falha de rede ao consultar.';
-    }
-  }
+        let j = null;
+        try{ j = JSON.parse(txt); }catch(_){}
+        if(!j || typeof j!=='object'){
+          setMsg('retStatus','bad',`Resposta não-JSON do servidor: ${txt.slice(0,180)}`);
+          return;
+        }
+        if(!j.ok){
+          setMsg('retStatus','bad', j.msg || 'Não encontrado.');
+          return;
+        }
 
-  async function registrar(){
-    el('retRegistro').className='msg muted';
-    el('retRegistro').textContent='Enviando...';
+        ultimoToken = j.token;
+        ultimoStatusOK = true;
+        const resumo = `Carteirinha válida — até ${j.validade || '-'} — ${j.numero || ''} ${j.nome ? ' — ' + j.nome : ''}`;
+        setMsg('retStatus','ok',resumo);
 
-    if(!ultimoStatusOK || !ultimoToken){
-      el('retRegistro').className='msg bad';
-      el('retRegistro').textContent='Consulte a carteirinha antes de registrar.';
-      return;
-    }
-    const pin = el('pin').value.trim();
-    if(!pin){ el('retRegistro').className='msg bad'; el('retRegistro').textContent='Informe o PIN.'; return; }
+        if(!PARCEIRO_ID){
+          setMsg('retStatus','bad','Parceiro não definido na URL (?parceiro=PXXX).');
+          return;
+        }
+        const r2 = await fetch(EXEC_URL + '?action=ofertas&parceiro=' + encodeURIComponent(PARCEIRO_ID), { cache:'no-store' });
+        const txt2 = await r2.text();
+        if(!r2.ok){
+          setMsg('retStatus','bad',`Erro nas ofertas (HTTP ${r2.status}): ${txt2.slice(0,180)}`);
+          return;
+        }
+        let arr = null;
+        try{ arr = JSON.parse(txt2); }catch(_){}
+        if(!Array.isArray(arr)){
+          setMsg('retStatus','bad',`Ofertas inválidas: ${txt2.slice(0,180)}`);
+          return;
+        }
+        const sel = document.getElementById('oferta');
+        sel.innerHTML = arr.length ? arr.map(o=>`<option value="${o.OfertaID}">${o.Titulo}</option>`).join('') : '<option value="">(sem ofertas)</option>';
 
-    const data = new URLSearchParams();
-    data.append('action','salvar');
-    data.append('parceiro', PARCEIRO_ID);
-    data.append('pin', pin);
-    data.append('token', ultimoToken);
-    data.append('oferta', el('oferta').value || '');
-    data.append('atendente', el('atendente').value || '');
-    data.append('obs', el('obs').value || '');
-
-    try{
-      const r = await fetch(EXEC_URL, {
-        method:'POST',
-        headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' },
-        body: data.toString()
-      });
-      const j = await r.json();
-      if(j.ok){
-        el('retRegistro').className='msg ok';
-        el('retRegistro').textContent = j.msg || 'Registrado!';
-        el('obs').value = '';
-      }else{
-        el('retRegistro').className='msg bad';
-        el('retRegistro').textContent = j.msg || 'Erro ao registrar.';
+        document.getElementById('areaRegistro').style.display = 'block';
+      }catch(e){
+        setMsg('retStatus','bad','Falha de rede ao consultar.');
       }
-    }catch(err){
-      el('retRegistro').className='msg bad';
-      el('retRegistro').textContent='Falha de rede ao registrar.';
     }
-  }
 
-  el('btnConsultar').addEventListener('click', consultar);
-  el('btnRegistrar').addEventListener('click', registrar);
+    async function registrar(){
+      setMsg('retRegistro','muted','Enviando...');
+
+      if(!ultimoStatusOK || !ultimoToken){
+        setMsg('retRegistro','bad','Consulte a carteirinha antes de registrar.');
+        return;
+      }
+      if(!PARCEIRO_ID){
+        setMsg('retRegistro','bad','Parceiro não definido na URL (?parceiro=PXXX).');
+        return;
+      }
+      const pin = document.getElementById('pin').value.trim();
+      if(!pin){
+        setMsg('retRegistro','bad','Informe o PIN.');
+        return;
+      }
+
+      const pairs = [
+        ['action','salvar'],
+        ['parceiro', PARCEIRO_ID],
+        ['pin', pin],
+        ['token', ultimoToken],
+        ['oferta', document.getElementById('oferta').value || ''],
+        ['atendente', document.getElementById('atendente').value || ''],
+        ['obs', document.getElementById('obs').value || '']
+      ];
+      const body = pairs.map(([k,v])=>encodeURIComponent(k)+'='+encodeURIComponent(v)).join('&');
+
+      try{
+        const r = await fetch(EXEC_URL, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' },
+          body
+        });
+        const txt = await r.text();
+        if(!r.ok){
+          setMsg('retRegistro','bad',`Erro HTTP ${r.status}: ${txt.slice(0,180)}`);
+          return;
+        }
+        let j = null;
+        try{ j = JSON.parse(txt); }catch(_){}
+        if(!j){
+          setMsg('retRegistro','bad',`Resposta não-JSON: ${txt.slice(0,180)}`);
+          return;
+        }
+        if(j.ok){
+          setMsg('retRegistro','ok', j.msg || 'Registrado!');
+          document.getElementById('obs').value = '';
+        }else{
+          setMsg('retRegistro','bad', j.msg || 'Erro ao registrar.');
+        }
+      }catch(e){
+        setMsg('retRegistro','bad','Falha de rede ao registrar.');
+      }
+    }
+
+    document.getElementById('btnConsultar').addEventListener('click', consultar);
+    document.getElementById('btnRegistrar').addEventListener('click', registrar);
   </script>
 </body>
 </html>

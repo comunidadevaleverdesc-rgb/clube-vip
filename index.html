@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Clube VIP</title>
-  <!-- VERSAO 13 -->
+  <!-- VERSAO 14 (sem URLSearchParams) -->
   <style>
     :root{--fg:#111;--muted:#666;--ok:#0a7a3b;--bad:#b00020;--bd:#ddd;}
     body{font-family:Arial, sans-serif; margin:20px; color:var(--fg);}
@@ -69,12 +69,23 @@
     /* ====== CONFIG ====== */
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyYICKpi1RdjJGJxanxe7yStnkL6MCr9VWgZR4OuLKRC6Hij3n5bWozLz6Bzi1_b_m93Q/exec";
 
+    // helper: codifica objeto -> "k=v&k2=v2"
+    function toFormUrlEncoded(obj){
+      const pares = [];
+      for (const k in obj){
+        if (Object.prototype.hasOwnProperty.call(obj,k)){
+          const v = obj[k] == null ? "" : String(obj[k]);
+          pares.push(encodeURIComponent(k)+"="+encodeURIComponent(v));
+        }
+      }
+      return pares.join("&");
+    }
+
     // GET passa por proxy (CORS)
     const viaProxyGET  = (url) => "https://corsproxy.io/?" + encodeURIComponent(url);
 
-    // POST: tentamos 1) direto; 2) corsproxy.io; 3) proxy.cors.sh
+    // POST resiliente: 1) direto; 2) corsproxy.io; 3) proxy.cors.sh
     async function postResiliente(url, bodyURLEncoded){
-      // 1) direto (sem proxy)
       try{
         const r = await fetch(url, {
           method: "POST",
@@ -82,12 +93,11 @@
           body: bodyURLEncoded
         });
         const txt = await r.text();
-        let j = null; try{ j = JSON.parse(txt); }catch(_){}
-        if (!r.ok) throw new Error("HTTP " + r.status + " – " + txt.slice(0,200));
-        if (!j)   throw new Error("Resposta não-JSON: " + txt.slice(0,200));
+        let j=null; try{ j=JSON.parse(txt); }catch(_){}
+        if(!r.ok) throw new Error("HTTP "+r.status+" – "+txt.slice(0,200));
+        if(!j)   throw new Error("Resposta não-JSON: "+txt.slice(0,200));
         return j;
       }catch(err1){
-        // 2) corsproxy.io
         try{
           const r = await fetch("https://corsproxy.io/?" + encodeURIComponent(url), {
             method: "POST",
@@ -95,38 +105,40 @@
             body: bodyURLEncoded
           });
           const txt = await r.text();
-          let j = null; try{ j = JSON.parse(txt); }catch(_){}
-          if (!r.ok) throw new Error("HTTP " + r.status + " – " + txt.slice(0,200));
-          if (!j)   throw new Error("Resposta não-JSON: " + txt.slice(0,200));
+          let j=null; try{ j=JSON.parse(txt); }catch(_){}
+          if(!r.ok) throw new Error("HTTP "+r.status+" – "+txt.slice(0,200));
+          if(!j)   throw new Error("Resposta não-JSON: "+txt.slice(0,200));
           return j;
         }catch(err2){
-          // 3) proxy.cors.sh (pede header de chave temporária)
-          try{
-            const r = await fetch("https://proxy.cors.sh/" + url, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "x-cors-api-key": "temporary"   // chave pública temporária
-              },
-              body: bodyURLEncoded
-            });
-            const txt = await r.text();
-            let j = null; try{ j = JSON.parse(txt); }catch(_){}
-            if (!r.ok) throw new Error("HTTP " + r.status + " – " + txt.slice(0,200));
-            if (!j)   throw new Error("Resposta não-JSON: " + txt.slice(0,200));
-            return j;
-          }catch(err3){
-            throw new Error("Falha de rede: " + err3.message);
-          }
+          const r = await fetch("https://proxy.cors.sh/" + url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              "x-cors-api-key": "temporary"
+            },
+            body: bodyURLEncoded
+          });
+          const txt = await r.text();
+          let j=null; try{ j=JSON.parse(txt); }catch(_){}
+          if(!r.ok) throw new Error("HTTP "+r.status+" – "+txt.slice(0,200));
+          if(!j)   throw new Error("Resposta não-JSON: "+txt.slice(0,200));
+          return j;
         }
       }
     }
 
     /* ====== MODO DE TELA ====== */
-    const params = new URLSearchParams(window.location.search);
-    const parceiro = params.get("parceiro");
-    const token    = params.get("t");
-    const page     = params.get("page");
+    function getQueryParam(name){
+      const q = window.location.search.substring(1).split("&");
+      for (const p of q){
+        const [k,v] = p.split("=");
+        if (decodeURIComponent(k||"") === name) return decodeURIComponent(v||"");
+      }
+      return "";
+    }
+    const parceiro = getQueryParam("parceiro");
+    const token    = getQueryParam("t");
+    const page     = getQueryParam("page");
 
     if (page === "registrar" && parceiro) {
       document.getElementById("modo").innerText = "Painel do Parceiro ("+parceiro+")";
@@ -149,7 +161,7 @@
         const url = SCRIPT_URL + "?action=ofertas&parceiro=" + encodeURIComponent(parceiroID);
         const r = await fetch(viaProxyGET(url), { cache: "no-store" });
         const txt = await r.text();
-        let j = null; try { j = JSON.parse(txt); } catch(_){}
+        let j=null; try{ j=JSON.parse(txt); }catch(_){}
         if(!r.ok) throw new Error("HTTP " + r.status + " – " + txt.slice(0,200));
         if(!Array.isArray(j)) throw new Error("Resposta inválida de ofertas: " + txt.slice(0,200));
         j.forEach(o=>{
@@ -178,7 +190,7 @@
         const url = SCRIPT_URL + "?action=status&q=" + encodeURIComponent(q);
         const r = await fetch(viaProxyGET(url), { cache: "no-store" });
         const txt = await r.text();
-        let j = null; try { j = JSON.parse(txt); } catch(_){}
+        let j=null; try{ j=JSON.parse(txt); }catch(_){}
         if(!r.ok){
           box.className = "bad";
           box.textContent = "Erro HTTP " + r.status + " – " + txt.slice(0,200);
@@ -210,7 +222,7 @@
       }
     }
 
-    // Registrar consumo — POST resiliente
+    // Registrar consumo — POST resiliente (sem URLSearchParams)
     async function enviar(){
       const pin       = document.getElementById("pin").value.trim();
       const entrada   = document.getElementById("entrada").value.trim();
@@ -226,11 +238,15 @@
       el.className = "muted";
       el.textContent = "Enviando…";
       try{
-        const body = new URLSearchParams({
+        const body = toFormUrlEncoded({
           action: "salvar",
           parceiro: parceiro || "",
-          pin, token: entrada, oferta, atendente, obs
-        }).toString();
+          pin: pin,
+          token: entrada,
+          oferta: oferta,
+          atendente: atendente,
+          obs: obs
+        });
 
         const j = await postResiliente(SCRIPT_URL, body);
 
@@ -249,15 +265,15 @@
     }
 
     // Mostra status simples (?t=TOKEN) — GET via proxy
-    async function consultarStatusSimples(token){
+    async function consultarStatusSimples(tok){
       const box = document.getElementById("status-simples");
       box.className = "muted";
       box.textContent = "Consultando…";
       try{
-        const url = SCRIPT_URL + "?action=status&q=" + encodeURIComponent(token);
+        const url = SCRIPT_URL + "?action=status&q=" + encodeURIComponent(tok);
         const r = await fetch(viaProxyGET(url), { cache: "no-store" });
         const txt = await r.text();
-        let j = null; try { j = JSON.parse(txt); } catch(_){}
+        let j=null; try{ j=JSON.parse(txt); }catch(_){}
         if(!r.ok){
           box.className = "bad";
           box.textContent = "Erro HTTP " + r.status + " – " + txt.slice(0,200);
@@ -281,4 +297,3 @@
   </script>
 </body>
 </html>
-

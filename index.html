@@ -11,7 +11,7 @@
     .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:18px}
     h1{margin:0 0 12px 0;font-size:28px}
     label{font-size:14px;color:var(--muted);display:block;margin:12px 0 6px}
-    input,select{width:100%;padding:12px;border:1px solid var(--br);border-radius:10px;font-size:16px}
+    input,select,textarea{width:100%;padding:12px;border:1px solid var(--br);border-radius:10px;font-size:16px;background:#fff}
     button{width:100%;padding:14px;border:0;border-radius:12px;background:#111;color:#fff;font-size:16px}
     .row{display:grid;grid-template-columns:1fr;gap:12px}
     @media(min-width:640px){ .row{grid-template-columns:1fr 1fr} }
@@ -23,16 +23,16 @@
   <div class="wrap">
     <div class="card">
       <h1>Clube VIP</h1>
-      <div class="muted" id="partnerTitle">Painel do Parceiro (P001)</div>
+      <div class="muted" id="partnerTitle">Painel do Parceiro</div>
 
       <div class="row">
         <div>
           <label>PIN do parceiro</label>
-          <input id="pin" type="password" placeholder="****" />
+          <input id="pin" type="password" inputmode="numeric" placeholder="****" />
         </div>
         <div>
-          <label>Número VIP ou Token (ou link do QR)</label>
-          <input id="entrada" placeholder="VIP001 ou gAbC123..." />
+          <label>Número VIP ou Token (ou cole o link do QR)</label>
+          <input id="entrada" placeholder="ex.: VIP001 ou gAbC123..." />
         </div>
       </div>
 
@@ -52,7 +52,7 @@
           </div>
           <div>
             <label>Observação (opcional)</label>
-            <input id="obs" placeholder="..." />
+            <input id="obs" placeholder="Opcional" />
           </div>
         </div>
 
@@ -64,79 +64,114 @@
     </div>
   </div>
 
-<script>
-// ===== CONFIG =====
-const EXEC_URL   = "https://script.google.com/macros/s/AKfycbxh7fzQdxbyY376tkY-gdvfYZ9RJVOJ0BF8cfEOZoin1lfw4sUJtPxm6aFHUANr0qrBfw/exec";
-const PARCEIRO_ID = "P001"; // <-- troque se quiser outro parceiro
-// ==================
+  <script>
+  // ======= CONFIG =======
+  const EXEC_URL = 'APPS_SCRIPT_EXEC_URL'; // <-- COLE aqui sua URL do Apps Script (/exec)
+  // ======================
 
-let ultimoToken='', ultimoOK=false;
-const el=id=>document.getElementById(id);
-
-function extrairEntrada(txt){
-  const m = (txt||'').match(/[?&]t=([^&#]+)/i);
-  return m ? decodeURIComponent(m[1]) : txt.trim();
-}
-
-async function consultar(){
-  el('retStatus').textContent='Consultando...';
-  el('retRegistro').textContent='';
-  ultimoToken=''; ultimoOK=false;
-  el('areaRegistro').style.display='none';
-
-  const entrada = extrairEntrada(el('entrada').value);
-  if(!entrada){ el('retStatus').className='msg bad'; el('retStatus').textContent='Informe VIP ou Token.'; return; }
-
-  try{
-    const r = await fetch(`${EXEC_URL}?action=status&token=${encodeURIComponent(entrada)}`);
-    const j = await r.json();
-    if(!j.ok){ el('retStatus').className='msg bad'; el('retStatus').textContent=j.msg; return; }
-
-    ultimoToken=j.token; ultimoOK=true;
-    el('retStatus').className='msg ok';
-    el('retStatus').innerHTML = `Carteirinha válida — <b>${j.numero}</b> — ${j.nome||''} — até ${j.validade||'-'}`;
-
-    // carrega ofertas
-    const ro = await fetch(`${EXEC_URL}?action=ofertas&parceiro=${PARCEIRO_ID}`);
-    const arr = await ro.json();
-    el('oferta').innerHTML = arr.map(o=>`<option value="${o.OfertaID}">${o.Titulo}</option>`).join('')||'<option>(sem ofertas)</option>';
-
-    el('areaRegistro').style.display='block';
-  }catch(err){
-    el('retStatus').className='msg bad'; el('retStatus').textContent='Falha de rede.';
+  // pega querystring (?parceiro=P001)
+  function getParam(name){
+    const m = location.search.match(new RegExp('[?&]'+name+'=([^&#]+)'));
+    return m ? decodeURIComponent(m[1]) : '';
   }
-}
+  const PARCEIRO_ID = getParam('parceiro') || '';
 
-async function registrar(){
-  if(!ultimoOK){ el('retRegistro').className='msg bad'; el('retRegistro').textContent='Consulte antes.'; return; }
-  const pin = el('pin').value.trim();
-  if(!pin){ el('retRegistro').className='msg bad'; el('retRegistro').textContent='Informe PIN.'; return; }
+  const el = id => document.getElementById(id);
+  const partnerTitle = el('partnerTitle');
+  partnerTitle.textContent = PARCEIRO_ID ? `Painel do Parceiro (${PARCEIRO_ID})` : 'Parceiro não definido';
 
-  const data = new URLSearchParams();
-  data.append('action','salvar');
-  data.append('parceiro',PARCEIRO_ID);
-  data.append('pin',pin);
-  data.append('token',ultimoToken);
-  data.append('oferta',el('oferta').value);
-  data.append('atendente',el('atendente').value);
-  data.append('obs',el('obs').value);
+  // estado
+  let ultimoToken = '';
+  let ultimoStatusOK = false;
 
-  try{
-    const r = await fetch(EXEC_URL,{
-      method:'POST',
-      headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:data.toString()
-    });
-    const j=await r.json();
-    if(j.ok){ el('retRegistro').className='msg ok'; el('retRegistro').textContent=j.msg; el('obs').value=''; }
-    else{ el('retRegistro').className='msg bad'; el('retRegistro').textContent=j.msg; }
-  }catch(err){
-    el('retRegistro').className='msg bad'; el('retRegistro').textContent='Falha de rede.';
+  function extrairTokenOuVip(txt){
+    txt = (txt||'').trim();
+    const m = txt.match(/[?&]t=([^&#]+)/i);
+    return m ? decodeURIComponent(m[1]) : txt;
   }
-}
 
-el('btnConsultar').addEventListener('click',consultar);
-el('btnRegistrar').addEventListener('click',registrar);
-</script>
+  async function consultar(){
+    el('retStatus').className = 'msg muted';
+    el('retStatus').textContent = 'Consultando...';
+    el('retRegistro').textContent = '';
+    el('areaRegistro').style.display = 'none';
+    ultimoToken = '';
+    ultimoStatusOK = false;
+
+    const entrada = extrairTokenOuVip(el('entrada').value);
+    if(!entrada){ el('retStatus').className='msg bad'; el('retStatus').textContent='Informe VIP ou Token.'; return; }
+
+    try{
+      const url = `${EXEC_URL}?action=status&token=${encodeURIComponent(entrada)}`;
+      const r = await fetch(url);
+      const j = await r.json();
+      if(!j.ok){
+        el('retStatus').className='msg bad';
+        el('retStatus').textContent = j.msg || 'Não encontrado.';
+        return;
+      }
+      ultimoToken = j.token;
+      ultimoStatusOK = true;
+
+      el('retStatus').className='msg ok';
+      el('retStatus').innerHTML = `Carteirinha válida — até <b>${j.validade||'-'}</b> — <b>${j.numero||''}</b> ${j.nome?(' — '+j.nome):''}`;
+
+      // carrega ofertas do parceiro
+      const ro = await fetch(`${EXEC_URL}?action=ofertas&parceiro=${encodeURIComponent(PARCEIRO_ID)}`);
+      const arr = await ro.json();
+      el('oferta').innerHTML = arr.map(o=>`<option value="${o.OfertaID}">${o.Titulo}</option>`).join('') || '<option value="">(sem ofertas)</option>';
+
+      el('areaRegistro').style.display = 'block';
+    }catch(err){
+      el('retStatus').className='msg bad';
+      el('retStatus').textContent = 'Falha de rede ao consultar.';
+    }
+  }
+
+  async function registrar(){
+    el('retRegistro').className='msg muted';
+    el('retRegistro').textContent='Enviando...';
+
+    if(!ultimoStatusOK || !ultimoToken){
+      el('retRegistro').className='msg bad';
+      el('retRegistro').textContent='Consulte a carteirinha antes de registrar.';
+      return;
+    }
+    const pin = el('pin').value.trim();
+    if(!pin){ el('retRegistro').className='msg bad'; el('retRegistro').textContent='Informe o PIN.'; return; }
+
+    const data = new URLSearchParams();
+    data.append('action','salvar');
+    data.append('parceiro', PARCEIRO_ID);
+    data.append('pin', pin);
+    data.append('token', ultimoToken);
+    data.append('oferta', el('oferta').value || '');
+    data.append('atendente', el('atendente').value || '');
+    data.append('obs', el('obs').value || '');
+
+    try{
+      const r = await fetch(EXEC_URL, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: data.toString()
+      });
+      const j = await r.json();
+      if(j.ok){
+        el('retRegistro').className='msg ok';
+        el('retRegistro').textContent = j.msg || 'Registrado!';
+        el('obs').value = '';
+      }else{
+        el('retRegistro').className='msg bad';
+        el('retRegistro').textContent = j.msg || 'Erro ao registrar.';
+      }
+    }catch(err){
+      el('retRegistro').className='msg bad';
+      el('retRegistro').textContent='Falha de rede ao registrar.';
+    }
+  }
+
+  el('btnConsultar').addEventListener('click', consultar);
+  el('btnRegistrar').addEventListener('click', registrar);
+  </script>
 </body>
 </html>

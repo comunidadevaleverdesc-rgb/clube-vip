@@ -66,10 +66,10 @@
 
   <script>
   // ======= CONFIG =======
-  const EXEC_URL = 'APPS_SCRIPT_EXEC_URL'; // <-- COLE aqui sua URL do Apps Script (/exec)
+  const EXEC_URL = 'https://script.google.com/macros/s/AKfycbyYICKpi1RdjJGJxanxe7yStnkL6MCr9VWgZR4OuLKRC6Hij3n5bWozLz6Bzi1_b_m93Q/exec';
   // ======================
 
-  // pega querystring (?parceiro=P001)
+  // pega ?parceiro=P001
   function getParam(name){
     const m = location.search.match(new RegExp('[?&]'+name+'=([^&#]+)'));
     return m ? decodeURIComponent(m[1]) : '';

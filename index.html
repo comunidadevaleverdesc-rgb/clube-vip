@@ -1,250 +1,168 @@
 <!doctype html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Clube VIP — Painel do Parceiro</title>
-<style>
-  :root{
-    --bg:#0b0b0d; --card:#141418; --muted:#8b8b93;
-    --text:#f2f2f7; --ok:#16a34a; --bad:#ef4444; --btn:#111113;
-    --stroke:#26262c; --accent:#0ea5e9;
-  }
-  html,body{background:var(--bg); color:var(--text); font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; margin:0}
-  .wrap{max-width:720px;margin:24px auto;padding:0 16px}
-  .card{background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:20px; box-shadow:0 1px 0 #0006}
-  h1{font-size:28px;margin:0 0 12px}
-  .sub{color:var(--muted); font-size:14px; margin-bottom:16px}
-  label{display:block; font-size:14px; color:var(--muted); margin:14px 0 6px}
-  input,select,textarea{
-    width:100%; padding:14px 12px; border-radius:12px; border:1px solid var(--stroke);
-    background:#0e0e12; color:var(--text); outline:none; font-size:16px;
-  }
-  textarea{min-height:84px; resize:vertical}
-  .row{display:grid; grid-template-columns:1fr; gap:12px}
-  @media(min-width:720px){ .row{grid-template-columns:1fr 1fr} }
-  button{
-    width:100%; padding:14px 16px; border-radius:12px; border:1px solid var(--stroke);
-    background:var(--btn); color:var(--text); font-weight:600; cursor:pointer
-  }
-  button:disabled{opacity:.6; cursor:not-allowed}
-  .msg{margin-top:12px; font-size:15px}
-  .ok{color:var(--ok)} .bad{color:var(--bad)} .muted{color:var(--muted)}
-  .pill{display:inline-block; padding:4px 10px; border-radius:999px; background:#0f172a; border:1px solid var(--stroke); font-size:12px; color:var(--muted)}
-  .points{font-weight:700}
-  .split{display:grid; grid-template-columns:1fr; gap:12px}
-  @media(min-width:720px){ .split{grid-template-columns:2fr 1fr} }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Clube VIP — Painel do Parceiro</title>
+
+  <style>
+    :root { color-scheme: only dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: #0b0b0c;
+      color: #e9e9ea;
+    }
+    .wrap { max-width: 860px; margin: 24px auto; padding: 16px; }
+    .card {
+      background: #141416;
+      border: 1px solid #232327;
+      border-radius: 16px;
+      padding: 18px 18px 22px 18px;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.04) inset;
+    }
+    h1 { margin: 0 0 8px 0; font-weight: 800; letter-spacing: .2px; }
+    .muted { color: #a2a2a8; font-size: 13px; }
+    .row { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 14px; }
+    @media (min-width: 740px) { .row-2 { grid-template-columns: 1fr 1fr; } }
+
+    label { font-size: 13px; color: #cfcfd6; display: block; margin-bottom: 3px; }
+    input, select, textarea {
+      width: 100%; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid #2f2f33; background: #1a1a1d; color: #fff;
+    }
+    button {
+      width: 100%; margin-top: 16px;
+      padding: 12px; border: none; border-radius: 10px;
+      background: #000; color: #fff; font-weight: bold;
+      cursor: pointer; transition: all .2s;
+    }
+    button:hover { background: #111; }
+    .status { margin-top: 12px; font-size: 14px; }
+    .ok { color: #4ade80; }
+    .err { color: #f87171; }
+  </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>Clube VIP</h1>
-      <div id="sub" class="sub">Painel do Parceiro (<span id="parcLbl">—</span>)</div>
-
-      <div class="row">
-        <div>
-          <label>PIN do parceiro</label>
-          <input id="pin" type="password" placeholder="PIN" autocomplete="off" />
-        </div>
-        <div>
-          <label>Número VIP ou Token (ou cole o link do QR)</label>
-          <input id="vip" placeholder="ex.: VIP001 ou gAbC123... ou https://...t=abc" autocomplete="off" />
-        </div>
-      </div>
-
-      <div style="margin:14px 0 4px"></div>
-      <button id="btnCheck">Consultar status</button>
-
-      <div id="status" class="msg muted"></div>
-
-      <div id="actions" style="display:none">
-        <label>Oferta</label>
-        <select id="oferta"></select>
-
-        <div class="row">
-          <div>
-            <label>Atendente</label>
-            <input id="atendente" placeholder="Nome do atendente" />
-          </div>
-          <div>
-            <label>Observação (opcional)</label>
-            <input id="obs" placeholder="Opcional" />
-          </div>
-        </div>
-
-        <div style="margin-top:12px"></div>
-        <button id="btnReg">Registrar consumo</button>
-        <div id="regMsg" class="msg muted"></div>
-      </div>
+      <div id="painel"></div>
     </div>
   </div>
 
 <script>
-/* ========= CONFIG ========= */
-const API_BASE = 'https://script.google.com/macros/s/AKfycbxxNuxW645VEwsbrBLz8WzyPUVsrr2WV3eL_ARgEZX8E1JWDuyjHEKi30mk6B2XwxlcRg/exec';
+const API = "https://script.google.com/macros/s/AKfycbxxNuxW645VEwsbrBLz8WzyPUVsrr2WV3eL_ARgEZX8E1JWDuyjHEKi30mk6B2XwxlcRg/exec";
 
-/* ========= Helpers ========= */
-// Polyfill leve para montar querystring (evita erro de URLSearchParams em iOS antigos)
-function toQS(obj){
-  return Object.keys(obj)
-    .filter(k => obj[k] !== undefined && obj[k] !== null)
-    .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(String(obj[k])))
-    .join('&');
-}
+// obtém parceiro da URL
+const urlParams = new URLSearchParams(window.location.search);
+const parceiro = urlParams.get("parceiro") || "P001";
 
-// le query param da URL
-function q(name){
-  const m = new RegExp('[?&]'+name+'=([^&#]*)').exec(location.search);
-  return m ? decodeURIComponent(m[1].replace(/\+/g,'%20')) : '';
-}
+// renderiza o formulário
+document.getElementById("painel").innerHTML = `
+  <div class="muted">Painel do Parceiro (${parceiro})</div>
+  <div class="row row-2">
+    <div>
+      <label>PIN do parceiro</label>
+      <input type="password" id="pinParceiro" placeholder="••••">
+    </div>
+    <div>
+      <label>Número VIP ou Token</label>
+      <input id="token" placeholder="ex.: VIP001">
+    </div>
+  </div>
+  <button onclick="consultarStatus()">Consultar status</button>
+  <div id="statusBox" class="status"></div>
+  <div id="ofertaBox" style="display:none; margin-top:20px;">
+    <label>Oferta</label>
+    <select id="ofertaSelect"></select>
+    <label>Atendente</label>
+    <input id="atendente" placeholder="Nome do atendente">
+    <label>Observação (opcional)</label>
+    <input id="obs">
+    <button onclick="registrarConsumo()">Registrar consumo</button>
+    <div id="msgReg" class="status"></div>
+  </div>
+`;
 
-// extrai token se colarem a URL do QR (...?t=XYZ)
-function extractTokenOrVip(raw){
-  if(!raw) return '';
-  const m = /[?&]t=([^&#]+)/i.exec(raw);
-  if(m) return m[1];
-  return raw.trim();
-}
+async function consultarStatus(){
+  const token = document.getElementById("token").value.trim();
+  if(!token){ alert("Informe o número VIP!"); return; }
 
-// GET JSON
-async function getJSON(params){
-  const url = API_BASE + '?' + toQS(params);
-  const r = await fetch(url, {cache:'no-store'});
-  return r.json();
-}
+  document.getElementById("statusBox").innerHTML = "Consultando...";
 
-// POST form
-async function postForm(params){
-  const r = await fetch(API_BASE, {
-    method:'POST',
-    headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body: toQS(params)
-  });
-  return r.json();
-}
+  try {
+    const r = await fetch(`${API}?action=status&token=${encodeURIComponent(token)}`);
+    const data = await r.json();
 
-/* ========= UI ========= */
-const $ = id => document.getElementById(id);
-const parceiro = q('parceiro') || 'P001';
-$('parcLbl').textContent = parceiro;
-
-const elPin = $('pin');
-const elVip = $('vip');
-const elStatus = $('status');
-const elBtnCheck = $('btnCheck');
-const elActions = $('actions');
-const elOferta = $('oferta');
-const elAt = $('atendente');
-const elObs = $('obs');
-const elBtnReg = $('btnReg');
-const elRegMsg = $('regMsg');
-
-// carrega ofertas do parceiro
-async function loadOfertas(){
-  try{
-    const j = await getJSON({action:'ofertas', parceiro});
-    elOferta.innerHTML = '';
-    if(!j.ok || !j.ofertas || !j.ofertas.length){
-      const opt = document.createElement('option');
-      opt.value = ''; opt.textContent = '— Nenhuma oferta ativa —';
-      elOferta.appendChild(opt);
-      return;
+    if(data.ok){
+      document.getElementById("statusBox").innerHTML =
+        `<span class="ok">${data.msg}</span>`;
+      // buscar ofertas
+      carregarOfertas(parceiro, token);
+    } else {
+      document.getElementById("statusBox").innerHTML =
+        `<span class="err">${data.msg}</span>`;
     }
-    j.ofertas.forEach(o=>{
-      const opt = document.createElement('option');
-      opt.value = o.id;
-      opt.textContent = o.titulo;
-      elOferta.appendChild(opt);
+  } catch(e){
+    document.getElementById("statusBox").innerHTML =
+      `<span class="err">Erro: ${e}</span>`;
+  }
+}
+
+async function carregarOfertas(parceiro, token){
+  try {
+    const r = await fetch(`${API}?action=ofertas&parceiro=${parceiro}&token=${token}`);
+    const data = await r.json();
+
+    const sel = document.getElementById("ofertaSelect");
+    sel.innerHTML = "";
+
+    if(data.ok && data.ofertas && data.ofertas.length > 0){
+      data.ofertas.forEach(o=>{
+        const opt = document.createElement("option");
+        opt.value = o.nome;
+        opt.textContent = `${o.nome} (${o.descricao||''})`;
+        sel.appendChild(opt);
+      });
+      document.getElementById("ofertaBox").style.display = "block";
+    } else {
+      sel.innerHTML = `<option>— Nenhuma oferta ativa —</option>`;
+      document.getElementById("ofertaBox").style.display = "block";
+    }
+  } catch(e){
+    console.error(e);
+  }
+}
+
+async function registrarConsumo(){
+  const token = document.getElementById("token").value.trim();
+  const oferta = document.getElementById("ofertaSelect").value;
+  const atendente = document.getElementById("atendente").value;
+  const obs = document.getElementById("obs").value;
+  const pin = document.getElementById("pinParceiro").value;
+
+  document.getElementById("msgReg").innerHTML = "Registrando...";
+
+  try {
+    const r = await fetch(API, {
+      method:"POST",
+      body: new URLSearchParams({
+        action:"registrar",
+        parceiro, token, oferta, atendente, obs, pin
+      })
     });
-  }catch(e){
-    // falhar silencioso: parceiro ainda sem ofertas
-  }
-}
-
-// consulta status
-async function consultar(){
-  elStatus.className = 'msg muted';
-  elStatus.textContent = 'Consultando...';
-  elActions.style.display = 'none';
-  elRegMsg.textContent = '';
-
-  const token = extractTokenOrVip(elVip.value);
-  if(!token){ elStatus.className='msg bad'; elStatus.textContent='Informe VIP/Token.'; return; }
-
-  try{
-    const j = await getJSON({action:'status', token});
-    if(!j.ok){
-      elStatus.className = 'msg bad';
-      elStatus.textContent = j.msg || 'Não encontrado.';
-      return;
+    const data = await r.json();
+    if(data.ok){
+      document.getElementById("msgReg").innerHTML = `<span class="ok">${data.msg}</span>`;
+    } else {
+      document.getElementById("msgReg").innerHTML = `<span class="err">${data.msg}</span>`;
     }
-    // sucesso
-    elStatus.className = 'msg ok';
-    elStatus.innerHTML = `
-      <span class="pill">VIP</span> ${j.numero || token}
-      — <b>${j.nome || ''}</b>
-      ${j.validade ? ' — válido até <b>'+j.validade+'</b>' : ''}
-      ${typeof j.pontos === 'number' ? ' — Pontos: <span class="points">'+j.pontos+'</span>' : ''}
-    `;
-    await loadOfertas();
-    elActions.style.display = 'block';
-  }catch(e){
-    elStatus.className='msg bad';
-    elStatus.textContent = 'Falha de rede.';
+  } catch(e){
+    document.getElementById("msgReg").innerHTML = `<span class="err">Erro: ${e}</span>`;
   }
 }
-
-// registrar consumo
-async function registrar(){
-  elRegMsg.className='msg muted';
-  elRegMsg.textContent='Enviando...';
-
-  const pin = elPin.value.trim();
-  if(!pin){ elRegMsg.className='msg bad'; elRegMsg.textContent='PIN obrigatório.'; return; }
-
-  const token = extractTokenOrVip(elVip.value);
-  if(!token){ elRegMsg.className='msg bad'; elRegMsg.textContent='Consulte antes de registrar.'; return; }
-
-  const oferta = elOferta.value;
-  if(!oferta){ elRegMsg.className='msg bad'; elRegMsg.textContent='Selecione uma oferta.'; return; }
-
-  try{
-    const j = await postForm({
-      action:'registrar',
-      parceiro, pin,
-      token,
-      oferta,
-      atendente: elAt.value.trim(),
-      obs: elObs.value.trim()
-    });
-    if(j.ok){
-      elRegMsg.className='msg ok';
-      elRegMsg.textContent = j.msg || 'Registrado!';
-      // Atualiza pontos no topo
-      if(typeof j.pontos === 'number'){
-        const t = elStatus.innerHTML.replace(/Pontos: <span class="points">.*?<\/span>/,'');
-        elStatus.innerHTML = t + ' — Pontos: <span class="points">'+j.pontos+'</span>';
-      }
-      elObs.value = '';
-    }else{
-      elRegMsg.className='msg bad';
-      elRegMsg.textContent = j.msg || 'Erro ao registrar.';
-    }
-  }catch(e){
-    elRegMsg.className='msg bad';
-    elRegMsg.textContent='Falha de rede.';
-  }
-}
-
-elBtnCheck.addEventListener('click', consultar);
-elBtnReg.addEventListener('click', registrar);
-
-// enter para consultar
-elVip.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter') consultar(); });
-
-// foco no PIN
-setTimeout(()=>elPin.focus(), 200);
 </script>
 </body>
 </html>

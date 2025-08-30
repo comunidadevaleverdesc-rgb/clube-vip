@@ -1,196 +1,250 @@
 <!doctype html>
 <html lang="pt-br">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Clube VIP — Painel do Parceiro</title>
 <style>
-  :root{--bg:#f6f7f9;--card:#fff;--txt:#111;--muted:#6b7280;--ok:#0a7a3b;--bad:#b00020;--brand:#111}
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial}
-  .wrap{max-width:760px;margin:24px auto;padding:0 16px}
-  .card{background:var(--card);border:1px solid #e5e7eb;border-radius:14px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
-  h1{margin:0 0 8px;font-size:28px} .sub{color:var(--muted);margin:0 0 18px}
-  label{display:block;font-weight:600;margin:14px 0 6px}
-  input,select,textarea{width:100%;padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;font:inherit}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:#d1d5db;box-shadow:0 0 0 2px #0000000d}
-  .row{display:grid;gap:12px} @media(min-width:700px){.row{grid-template-columns:1fr 1fr}}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px 16px;border:0;border-radius:10px;background:var(--brand);color:#fff;font-weight:700;cursor:pointer}
-  .btn[disabled]{opacity:.5;cursor:not-allowed}
-  .space{height:14px}
-  .msg{margin-top:10px;font-weight:600}
+  :root{
+    --bg:#0b0b0d; --card:#141418; --muted:#8b8b93;
+    --text:#f2f2f7; --ok:#16a34a; --bad:#ef4444; --btn:#111113;
+    --stroke:#26262c; --accent:#0ea5e9;
+  }
+  html,body{background:var(--bg); color:var(--text); font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; margin:0}
+  .wrap{max-width:720px;margin:24px auto;padding:0 16px}
+  .card{background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:20px; box-shadow:0 1px 0 #0006}
+  h1{font-size:28px;margin:0 0 12px}
+  .sub{color:var(--muted); font-size:14px; margin-bottom:16px}
+  label{display:block; font-size:14px; color:var(--muted); margin:14px 0 6px}
+  input,select,textarea{
+    width:100%; padding:14px 12px; border-radius:12px; border:1px solid var(--stroke);
+    background:#0e0e12; color:var(--text); outline:none; font-size:16px;
+  }
+  textarea{min-height:84px; resize:vertical}
+  .row{display:grid; grid-template-columns:1fr; gap:12px}
+  @media(min-width:720px){ .row{grid-template-columns:1fr 1fr} }
+  button{
+    width:100%; padding:14px 16px; border-radius:12px; border:1px solid var(--stroke);
+    background:var(--btn); color:var(--text); font-weight:600; cursor:pointer
+  }
+  button:disabled{opacity:.6; cursor:not-allowed}
+  .msg{margin-top:12px; font-size:15px}
   .ok{color:var(--ok)} .bad{color:var(--bad)} .muted{color:var(--muted)}
-  .status{margin:10px 0 0;padding:12px;border-radius:10px;border:1px solid #e5e7eb}
-  .hide{display:none}
+  .pill{display:inline-block; padding:4px 10px; border-radius:999px; background:#0f172a; border:1px solid var(--stroke); font-size:12px; color:var(--muted)}
+  .points{font-weight:700}
+  .split{display:grid; grid-template-columns:1fr; gap:12px}
+  @media(min-width:720px){ .split{grid-template-columns:2fr 1fr} }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="card">
-    <h1>Clube VIP</h1>
-    <p class="sub">Painel do Parceiro <b id="lblParceiro">(…)</b></p>
-
-    <div class="row">
-      <div>
-        <label>PIN do parceiro</label>
-        <input id="pin" type="password" autocomplete="one-time-code" placeholder="****">
-      </div>
-      <div>
-        <label>Número VIP (ou cole o link do QR)</label>
-        <input id="vip" placeholder="ex.: VIP001 ou https://...t=gAbC123">
-      </div>
-    </div>
-
-    <div class="space"></div>
-    <button id="btnConsultar" class="btn">Consultar status</button>
-    <div id="statusBox" class="status hide"></div>
-
-    <div id="consumoBox" class="hide">
-      <div class="space"></div>
-      <label>Oferta</label>
-      <select id="oferta"></select>
+  <div class="wrap">
+    <div class="card">
+      <h1>Clube VIP</h1>
+      <div id="sub" class="sub">Painel do Parceiro (<span id="parcLbl">—</span>)</div>
 
       <div class="row">
         <div>
-          <label>Atendente</label>
-          <input id="atendente" placeholder="Nome do atendente">
+          <label>PIN do parceiro</label>
+          <input id="pin" type="password" placeholder="PIN" autocomplete="off" />
         </div>
         <div>
-          <label>Observação (opcional)</label>
-          <input id="obs" placeholder="Observação">
+          <label>Número VIP ou Token (ou cole o link do QR)</label>
+          <input id="vip" placeholder="ex.: VIP001 ou gAbC123... ou https://...t=abc" autocomplete="off" />
         </div>
       </div>
 
-      <div class="space"></div>
-      <button id="btnRegistrar" class="btn">Registrar consumo</button>
-      <div id="msg" class="msg"></div>
+      <div style="margin:14px 0 4px"></div>
+      <button id="btnCheck">Consultar status</button>
+
+      <div id="status" class="msg muted"></div>
+
+      <div id="actions" style="display:none">
+        <label>Oferta</label>
+        <select id="oferta"></select>
+
+        <div class="row">
+          <div>
+            <label>Atendente</label>
+            <input id="atendente" placeholder="Nome do atendente" />
+          </div>
+          <div>
+            <label>Observação (opcional)</label>
+            <input id="obs" placeholder="Opcional" />
+          </div>
+        </div>
+
+        <div style="margin-top:12px"></div>
+        <button id="btnReg">Registrar consumo</button>
+        <div id="regMsg" class="msg muted"></div>
+      </div>
     </div>
   </div>
-</div>
 
 <script>
-/* ========= 1) CONFIGURE AQUI ========= */
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzXJtuSu9Um2mSVbYLDX3IxBk_3PPy2gXRTz6Oy8drYIz8hPcQUGmPKA-I2QO7u7zMPAA/exec';
-/* ==================================== */
+/* ========= CONFIG ========= */
+const API_BASE = 'https://script.google.com/macros/s/AKfycbxxNuxW645VEwsbrBLz8WzyPUVsrr2WV3eL_ARgEZX8E1JWDuyjHEKi30mk6B2XwxlcRg/exec';
 
-/* Polyfill simples para URLSearchParams em navegadores antigos */
-function toQuery(obj){
-  try{ return new URLSearchParams(obj).toString(); }
-  catch(e){
-    return Object.keys(obj).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(obj[k]??'')).join('&');
-  }
+/* ========= Helpers ========= */
+// Polyfill leve para montar querystring (evita erro de URLSearchParams em iOS antigos)
+function toQS(obj){
+  return Object.keys(obj)
+    .filter(k => obj[k] !== undefined && obj[k] !== null)
+    .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(String(obj[k])))
+    .join('&');
 }
 
-/* util */
-const $ = sel => document.querySelector(sel);
-const params = new URLSearchParams(location.search);
-const parceiroID = (params.get('parceiro') || 'P001').trim();
-$('#lblParceiro').textContent = `(${parceiroID})`;
-
-/* extrai VIP do campo, aceitando link com ?t=TOKEN ou já VIPxxx */
-function parseVip(raw){
-  const s = String(raw||'').trim();
-  if(!s) return '';
-  try{
-    const u = new URL(s);
-    const t = u.searchParams.get('t');
-    if(t) return t; // se colar o link do QR antigo, enviamos como "vip" mesmo — Apps Script trata
-  }catch(e){}
-  return s; // VIP001 etc.
+// le query param da URL
+function q(name){
+  const m = new RegExp('[?&]'+name+'=([^&#]*)').exec(location.search);
+  return m ? decodeURIComponent(m[1].replace(/\+/g,'%20')) : '';
 }
 
-/* chamadas à API */
-async function apiGet(q){
-  const url = WEB_APP_URL + '?' + toQuery(q);
-  const r = await fetch(url, {method:'GET'});
-  if(!r.ok) throw new Error('HTTP '+r.status);
+// extrai token se colarem a URL do QR (...?t=XYZ)
+function extractTokenOrVip(raw){
+  if(!raw) return '';
+  const m = /[?&]t=([^&#]+)/i.exec(raw);
+  if(m) return m[1];
+  return raw.trim();
+}
+
+// GET JSON
+async function getJSON(params){
+  const url = API_BASE + '?' + toQS(params);
+  const r = await fetch(url, {cache:'no-store'});
   return r.json();
 }
-async function apiPost(q){
-  const r = await fetch(WEB_APP_URL, {
+
+// POST form
+async function postForm(params){
+  const r = await fetch(API_BASE, {
     method:'POST',
-    headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
-    body: toQuery(q)
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: toQS(params)
   });
-  if(!r.ok) throw new Error('HTTP '+r.status);
   return r.json();
 }
 
-/* popula ofertas do parceiro */
-async function carregarOfertas(){
-  const j = await apiGet({action:'ofertas', parceiro: parceiroID});
-  const sel = $('#oferta');
-  sel.innerHTML = '';
-  (j.ofertas||[]).forEach(o=>{
-    const opt = document.createElement('option');
-    opt.value = o.OfertaID;
-    opt.textContent = o.Titulo;
-    sel.appendChild(opt);
-  });
+/* ========= UI ========= */
+const $ = id => document.getElementById(id);
+const parceiro = q('parceiro') || 'P001';
+$('parcLbl').textContent = parceiro;
+
+const elPin = $('pin');
+const elVip = $('vip');
+const elStatus = $('status');
+const elBtnCheck = $('btnCheck');
+const elActions = $('actions');
+const elOferta = $('oferta');
+const elAt = $('atendente');
+const elObs = $('obs');
+const elBtnReg = $('btnReg');
+const elRegMsg = $('regMsg');
+
+// carrega ofertas do parceiro
+async function loadOfertas(){
+  try{
+    const j = await getJSON({action:'ofertas', parceiro});
+    elOferta.innerHTML = '';
+    if(!j.ok || !j.ofertas || !j.ofertas.length){
+      const opt = document.createElement('option');
+      opt.value = ''; opt.textContent = '— Nenhuma oferta ativa —';
+      elOferta.appendChild(opt);
+      return;
+    }
+    j.ofertas.forEach(o=>{
+      const opt = document.createElement('option');
+      opt.value = o.id;
+      opt.textContent = o.titulo;
+      elOferta.appendChild(opt);
+    });
+  }catch(e){
+    // falhar silencioso: parceiro ainda sem ofertas
+  }
 }
 
-/* consultar carteirinha (somente VIP) */
-$('#btnConsultar').addEventListener('click', async ()=>{
-  const pin = $('#pin').value.trim();
-  const vip = parseVip($('#vip').value);
-  const box = $('#statusBox'); const btn = $('#btnConsultar'); const msg = $('#msg');
-  msg.textContent=''; box.classList.add('hide'); $('#consumoBox').classList.add('hide');
+// consulta status
+async function consultar(){
+  elStatus.className = 'msg muted';
+  elStatus.textContent = 'Consultando...';
+  elActions.style.display = 'none';
+  elRegMsg.textContent = '';
 
-  if(!pin){ msg.textContent='Informe o PIN.'; msg.className='msg bad'; return; }
-  if(!vip){ msg.textContent='Informe o VIP.'; msg.className='msg bad'; return; }
+  const token = extractTokenOrVip(elVip.value);
+  if(!token){ elStatus.className='msg bad'; elStatus.textContent='Informe VIP/Token.'; return; }
 
-  btn.disabled = true;
   try{
-    const j = await apiGet({action:'status', vip});
-    if(!j.ok){ msg.textContent = j.msg || 'Não encontrado.'; msg.className='msg bad'; return; }
-
-    box.innerHTML = `<b>${j.msg}</b><div class="muted">${j.numero} — ${j.nome}</div>`;
-    box.classList.remove('hide');
-    await carregarOfertas();
-    $('#consumoBox').classList.remove('hide');
-    msg.textContent=''; msg.className='msg';
+    const j = await getJSON({action:'status', token});
+    if(!j.ok){
+      elStatus.className = 'msg bad';
+      elStatus.textContent = j.msg || 'Não encontrado.';
+      return;
+    }
+    // sucesso
+    elStatus.className = 'msg ok';
+    elStatus.innerHTML = `
+      <span class="pill">VIP</span> ${j.numero || token}
+      — <b>${j.nome || ''}</b>
+      ${j.validade ? ' — válido até <b>'+j.validade+'</b>' : ''}
+      ${typeof j.pontos === 'number' ? ' — Pontos: <span class="points">'+j.pontos+'</span>' : ''}
+    `;
+    await loadOfertas();
+    elActions.style.display = 'block';
   }catch(e){
-    msg.textContent = 'Falha de rede: '+ e.message;
-    msg.className='msg bad';
-  }finally{
-    btn.disabled = false;
+    elStatus.className='msg bad';
+    elStatus.textContent = 'Falha de rede.';
   }
-});
+}
 
-/* registrar consumo (somente VIP) */
-$('#btnRegistrar').addEventListener('click', async ()=>{
-  const pin = $('#pin').value.trim();
-  const vip = parseVip($('#vip').value);
-  const oferta = $('#oferta').value;
-  const atendente = $('#atendente').value.trim();
-  const obs = $('#obs').value.trim();
-  const btn = $('#btnRegistrar'); const msg = $('#msg');
+// registrar consumo
+async function registrar(){
+  elRegMsg.className='msg muted';
+  elRegMsg.textContent='Enviando...';
 
-  if(!pin || !vip || !oferta){
-    msg.textContent = 'Preencha PIN, VIP e escolha a oferta.'; msg.className='msg bad'; return;
-  }
+  const pin = elPin.value.trim();
+  if(!pin){ elRegMsg.className='msg bad'; elRegMsg.textContent='PIN obrigatório.'; return; }
 
-  btn.disabled = true; msg.textContent = 'Registrando…'; msg.className='msg muted';
+  const token = extractTokenOrVip(elVip.value);
+  if(!token){ elRegMsg.className='msg bad'; elRegMsg.textContent='Consulte antes de registrar.'; return; }
+
+  const oferta = elOferta.value;
+  if(!oferta){ elRegMsg.className='msg bad'; elRegMsg.textContent='Selecione uma oferta.'; return; }
+
   try{
-    const j = await apiPost({
+    const j = await postForm({
       action:'registrar',
-      parceiro: parceiroID,
-      pin, vip, oferta, atendente, obs
+      parceiro, pin,
+      token,
+      oferta,
+      atendente: elAt.value.trim(),
+      obs: elObs.value.trim()
     });
     if(j.ok){
-      msg.textContent = j.msg || 'Consumo registrado e pontos somados.'; msg.className='msg ok';
-      $('#obs').value = '';
+      elRegMsg.className='msg ok';
+      elRegMsg.textContent = j.msg || 'Registrado!';
+      // Atualiza pontos no topo
+      if(typeof j.pontos === 'number'){
+        const t = elStatus.innerHTML.replace(/Pontos: <span class="points">.*?<\/span>/,'');
+        elStatus.innerHTML = t + ' — Pontos: <span class="points">'+j.pontos+'</span>';
+      }
+      elObs.value = '';
     }else{
-      msg.textContent = j.msg || 'Não foi possível registrar.'; msg.className='msg bad';
+      elRegMsg.className='msg bad';
+      elRegMsg.textContent = j.msg || 'Erro ao registrar.';
     }
   }catch(e){
-    msg.textContent = 'Erro: '+e.message; msg.className='msg bad';
-  }finally{
-    btn.disabled = false;
+    elRegMsg.className='msg bad';
+    elRegMsg.textContent='Falha de rede.';
   }
-});
+}
 
-/* start: carrega ofertas já na entrada */
-carregarOfertas().catch(()=>{ /* silencioso */ });
+elBtnCheck.addEventListener('click', consultar);
+elBtnReg.addEventListener('click', registrar);
+
+// enter para consultar
+elVip.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter') consultar(); });
+
+// foco no PIN
+setTimeout(()=>elPin.focus(), 200);
 </script>
 </body>
 </html>

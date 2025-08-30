@@ -77,10 +77,7 @@
 </div>
 
 <script>
-/* ========= CONFIG =========
-   Cole aqui a SUA URL de Web App do Apps Script (a versão /exec)
-   Esta é a que você me passou e validamos:
-*/
+/* ========= CONFIG ========= */
 const API = "https://script.google.com/macros/s/AKfycbxxNuxW645VEwsbrBLz8WzyPUVsrr2WV3eL_ARgEZX8E1JWDuyjHEKi30mk6B2XwxlcRg/exec";
 
 /* ========= HELPERS ========= */
@@ -90,11 +87,9 @@ const parceiroID = (qs.get('parceiro') || 'P001').toUpperCase();
 $('#parcLabel').textContent = parceiroID;
 $('#footInfo').innerHTML = `<span class="pill">Parceiro</span>${parceiroID}`;
 
-// extrai token mesmo se usuário colar o link do QR
 function extractTokenOrVip(raw){
   const s = String(raw||'').trim();
   if(!s) return '';
-  // URL com ?t=xxxxx
   try{
     if(/^https?:\/\//i.test(s)){
       const u = new URL(s);
@@ -114,7 +109,7 @@ async function loadOfertas(){
   try{
     const url = `${API}?action=ofertas&parceiro=${encodeURIComponent(parceiroID)}`;
     const r = await fetch(url, {cache:'no-store'});
-    const list = await r.json(); // [{OfertaID, Titulo, ...}]
+    const list = await r.json();
     if(!Array.isArray(list) || list.length===0){
       sel.innerHTML = `<option value="">— Nenhuma oferta ativa —</option>`;
       return;
@@ -169,7 +164,7 @@ async function registrar(){
   setMsg('Registrando...','muted');
   try{
     const body = new URLSearchParams({
-      action: 'registrar',
+      action: 'salvar',               // <<< AQUI! seu Apps Script espera "salvar"
       parceiro: parceiroID,
       pin, token, oferta, atendente, obs
     });
@@ -181,7 +176,7 @@ async function registrar(){
     const j = await r.json();
     if(j.ok){
       setMsg('OK: consumo registrado.','ok');
-      $('#obs').value=''; // limpa observação
+      $('#obs').value='';
     }else{
       setMsg(j.msg || 'Erro ao registrar.','bad');
     }
@@ -195,12 +190,9 @@ async function registrar(){
 /* ========= WIRES ========= */
 $('#btnStatus').addEventListener('click', consultarStatus);
 $('#btnReg').addEventListener('click', registrar);
-
-// Autopreenche VIP se vier ?vip=VIP001
 if(qs.get('vip')) $('#vip').value = qs.get('vip');
 loadOfertas();
 setStatus('—');
 </script>
 </body>
 </html>
-

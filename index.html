@@ -1,198 +1,182 @@
 <!doctype html>
 <html lang="pt-br">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Clube VIP — Painel do Parceiro</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Clube VIP — Painel do Morador</title>
   <style>
     :root{
-      --bg:#0f1115; --card:#1a1d24; --muted:#8e96a3; --text:#e9edf1;
-      --ok:#20c997; --bad:#ff6b6b; --btn:#0d6efd; --btn2:#11161f;
-      --input:#10131a; --border:#2a2f3b;
+      --bg:#121212; --panel:#1c1c1f; --ink:#e8e8e8; --muted:#9aa0a6; --accent:#21c063; --danger:#ff5d5d;
+      --input:#232327; --border:#2a2a2e;
     }
-    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
-    body{margin:0;background:var(--bg);color:var(--text)}
-    .wrap{max-width:880px;margin:24px auto;padding:12px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:0 10px 24px rgba(0,0,0,.25)}
-    h1{margin:.2rem 0 1rem 0;font-weight:800;letter-spacing:.2px}
-    label{font-size:.9rem;color:var(--muted);display:block;margin:14px 0 6px}
-    input,select,textarea{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--input);color:var(--text);outline:none}
-    textarea{min-height:76px;resize:vertical}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    @media (max-width:680px){.row{grid-template-columns:1fr}}
-    button{width:100%;padding:14px;border-radius:12px;border:0;cursor:pointer;font-weight:700}
-    .btn{background:var(--btn);color:#fff}
-    .btn2{background:var(--btn2);color:#fff;border:1px solid var(--border)}
-    .msg{margin-top:12px;font-weight:600}
-    .ok{color:var(--ok)} .bad{color:var(--bad)} .muted{color:var(--muted)}
-    .pill{display:inline-block;padding:3px 8px;border-radius:999px;background:#0b1320;color:#8ab4ff;border:1px solid var(--border);font-size:.82rem;margin-right:6px}
-    .bar{height:44px;border-radius:12px;background:#0b1018;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;margin:12px 0;color:#cbd3df}
-    .foot{margin-top:14px;color:var(--muted);font-size:.88rem}
-    select:disabled,button:disabled, input:disabled, textarea:disabled{opacity:.6;cursor:not-allowed}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,Segoe UI,Roboto,Arial}
+    .wrap{max-width:720px;margin:24px auto;padding:16px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+    h1{font-size:26px;margin:0 0 12px}
+    label{display:block;margin:12px 0 6px;color:var(--muted)}
+    input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--input);color:var(--ink);outline:none}
+    input::placeholder{color:#6c7278}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media (min-width:680px){ .grid{grid-template-columns:1fr 1fr} }
+    button{width:100%;border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer;background:#0f0f10;color:#fff}
+    .btn{background:#0f0f10}
+    .btn:hover{filter:brightness(1.1)}
+    .ok{color:var(--accent)}
+    .bad{color:var(--danger)}
+    .muted{color:var(--muted)}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .pill{display:inline-block;background:#0f0f10;border:1px solid var(--border);padding:6px 10px;border-radius:999px;font-size:12px;color:var(--muted)}
+    .panel{background:#161618;border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:12px}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border-bottom:1px solid var(--border);padding:10px;text-align:left;font-size:14px}
+    th{color:var(--muted);font-weight:600}
   </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="card">
-    <h1>Clube VIP</h1>
-    <div id="hdr" class="muted" style="margin-bottom:8px">Painel do Parceiro (<span id="parcLabel">—</span>)</div>
+  <div class="wrap">
+    <div class="card">
+      <h1>Clube VIP — Painel do Morador</h1>
 
-    <div class="row">
-      <div>
-        <label>PIN do parceiro</label>
-        <input id="pin" type="password" placeholder="••••">
+      <div class="grid">
+        <div>
+          <label for="vip">VIP ou Token</label>
+          <input id="vip" placeholder="ex.: VIP001 ou gAbC123..." autocomplete="one-time-code" />
+        </div>
+        <div>
+          <label for="pin">PIN do morador</label>
+          <input id="pin" type="password" placeholder="PIN de 4–6 dígitos" />
+        </div>
       </div>
-      <div>
-        <label>Número VIP ou Token (ou cole o link do QR)</label>
-        <input id="vip" placeholder="ex.: VIP001 ou gAbC123... ou https://...">
+
+      <div style="margin-top:12px">
+        <button id="btn" class="btn">Consultar</button>
+      </div>
+
+      <div id="msg" class="muted" style="margin-top:10px"></div>
+
+      <div id="statusBox" class="panel" style="display:none">
+        <div class="row">
+          <span class="pill" id="vippill">VIP</span>
+          <span class="pill" id="namepill">—</span>
+        </div>
+        <div style="margin-top:8px" id="statusLine">—</div>
+        <div class="row" style="margin-top:8px">
+          <div class="pill">Pontos: <b id="pontos">0</b></div>
+          <div class="pill">Validade: <b id="valid">—</b></div>
+          <div class="pill">Status: <b id="sts">—</b></div>
+        </div>
+      </div>
+
+      <div id="histBox" class="panel" style="display:none">
+        <div class="row" style="justify-content:space-between">
+          <b>Últimos usos</b>
+          <span class="muted" id="count"></span>
+        </div>
+        <table id="hist">
+          <thead><tr><th>Data</th><th>Parceiro</th><th>Oferta</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
     </div>
-
-    <button id="btnStatus" class="btn2" style="margin-top:10px">Consultar status</button>
-    <div id="statusBox" class="bar muted">—</div>
-
-    <div>
-      <label>Oferta</label>
-      <select id="oferta">
-        <option value="">— Nenhuma oferta ativa —</option>
-      </select>
-    </div>
-
-    <div class="row">
-      <div>
-        <label>Atendente</label>
-        <input id="atendente" placeholder="Nome do atendente">
-      </div>
-      <div>
-        <label>Observação (opcional)</label>
-        <input id="obs" placeholder="Opcional">
-      </div>
-    </div>
-
-    <button id="btnReg" class="btn" style="margin-top:14px">Registrar consumo</button>
-    <div id="msg" class="msg muted"> </div>
-
-    <div class="foot" id="footInfo"></div>
   </div>
-</div>
 
-<script>
-/* ========= CONFIG ========= */
-coconst API = "https://script.google.com/macros/s/AKfycbz-6HVoj0L_JyqCwaf-8Gn3Ye_ClEQMgSyqT7JQzoubFkF8XaB0OnrXL1oSbfEUx6Oipw/exec";
-  
-/* ========= HELPERS ========= */
-const $ = sel => document.querySelector(sel);
-const qs = new URLSearchParams(location.search);
-const parceiroID = (qs.get('parceiro') || 'P001').toUpperCase();
-$('#parcLabel').textContent = parceiroID;
-$('#footInfo').innerHTML = `<span class="pill">Parceiro</span>${parceiroID}`;
+  <script>
+    // 🔗 SUA Web App /exec (ATENÇÃO: esta constante precisa existir com este nome)
+    const APP_URL = "https://script.google.com/macros/s/AKfycbz-6HVoj0L_JyqCwaf-8Gn3Ye_ClEQMgSyqT7JQzoubFkF8XaB0OnrXL1oSbfEUx6Oipw/exec";
 
-function extractTokenOrVip(raw){
-  const s = String(raw||'').trim();
-  if(!s) return '';
-  try{
-    if(/^https?:\/\//i.test(s)){
-      const u = new URL(s);
-      const t = u.searchParams.get('t');
-      if (t) return t.trim();
+    const $ = (id)=>document.getElementById(id);
+    const btn = $("btn"), vipEl = $("vip"), pinEl = $("pin"), msg = $("msg");
+
+    // Pré-preenche via ?vip= & ?pin=
+    (function preload(){
+      const u = new URL(location.href);
+      const v = (u.searchParams.get("vip")||"").trim();
+      const p = (u.searchParams.get("pin")||"").trim();
+      if (v) vipEl.value = v;
+      if (p) pinEl.value = p;
+      if (v && p) consult();
+    })();
+
+    btn.addEventListener("click", consult);
+
+    async function consult(){
+      const vip = vipEl.value.trim();
+      const pin = pinEl.value.trim();
+      if (!vip || !pin){ flash("Informe VIP/Token e PIN.", true); return; }
+
+      try{
+        flash("Consultando...");
+        const u = APP_URL + "?action=status&token=" + encodeURIComponent(vip) + "&pin=" + encodeURIComponent(pin);
+        const r = await fetch(u, {method:"GET", credentials:"omit"});
+        if(!r.ok) throw new Error("HTTP " + r.status);
+        const j = await r.json();
+        if(!j.ok){ flash(j.msg || "Não encontrado.", true); hideBoxes(); return; }
+
+        // status
+        $("vippill").textContent = j.numero || vip;
+        $("namepill").textContent = j.nome || "—";
+        $("valid").textContent = j.validade || "—";
+        $("sts").textContent   = j.status || "—";
+        $("pontos").textContent= (j.pontos!=null ? j.pontos : "0");
+        $("statusLine").innerHTML = (j.ok ? '<span class="ok">✔</span> ' : '<span class="bad">✖</span> ') + (j.msg || "");
+        $("statusBox").style.display = "block";
+        flash("");
+
+        // histórico
+        await loadHistory(vip);
+      }catch(err){
+        flash("Falha de rede: " + (err.message||err), true);
+        hideBoxes();
+      }
     }
-  }catch(e){}
-  return s;
-}
-function setStatus(msg, cls='muted'){ const box=$('#statusBox'); box.className='bar '+cls; box.textContent=msg; }
-function setMsg(msg, cls='muted'){ const m=$('#msg'); m.className='msg '+cls; m.textContent=msg; }
 
-/* ========= OFERTAS ========= */
-async function loadOfertas(){
-  const sel = $('#oferta');
-  sel.innerHTML = `<option value="">Carregando...</option>`;
-  try{
-    const url = `${API}?action=ofertas&parceiro=${encodeURIComponent(parceiroID)}`;
-    const r = await fetch(url, {cache:'no-store'});
-    const list = await r.json();
-    if(!Array.isArray(list) || list.length===0){
-      sel.innerHTML = `<option value="">— Nenhuma oferta ativa —</option>`;
-      return;
+    async function loadHistory(vip){
+      try{
+        const url = APP_URL + "?action=meus-consumos&token=" + encodeURIComponent(vip);
+        const r = await fetch(url, {method:"GET"});
+        if(!r.ok) throw new Error("HTTP " + r.status);
+        const data = await r.json();
+
+        const tbody = $("hist").querySelector("tbody");
+        tbody.innerHTML = "";
+        let rows = [];
+
+        // aceita vários formatos (array puro ou {items:[...]})
+        if (Array.isArray(data) && data.length){
+          rows = data;
+        } else if (data && Array.isArray(data.items)) {
+          rows = data.items;
+        }
+
+        rows.slice(0, 20).forEach(item=>{
+          const tr = document.createElement("tr");
+          const d  = fmtDate(item.timestamp || item.data || item.date);
+          const pr = item.parceiro || item.parceiroID || "";
+          const of = item.oferta || item.ofertaID || item.titulo || "";
+          tr.innerHTML = `<td>${d}</td><td>${pr}</td><td>${escapeHtml(of)}</td>`;
+          tbody.appendChild(tr);
+        });
+
+        $("count").textContent = rows.length ? `${rows.length} registro(s)` : "sem registros";
+        $("histBox").style.display = "block";
+      }catch(e){
+        $("count").textContent = "histórico indisponível";
+        $("histBox").style.display = "block";
+      }
     }
-    sel.innerHTML = list.map(o => `<option value="${o.OfertaID}">${o.Titulo}</option>`).join('');
-  }catch(e){
-    sel.innerHTML = `<option value="">ERRO ao carregar ofertas</option>`;
-  }
-}
 
-/* ========= STATUS ========= */
-async function consultarStatus(){
-  setMsg(' ','muted');
-  const raw = $('#vip').value;
-  const token = extractTokenOrVip(raw);
-  if(!token){ setStatus('Informe VIP, Token ou a URL do QR.','bad'); return; }
-  $('#btnStatus').disabled = true;
-  setStatus('Consultando...','muted');
-  try{
-    const url = `${API}?action=status&token=${encodeURIComponent(token)}`;
-    const r = await fetch(url, {cache:'no-store'});
-    const j = await r.json();
-    if(j.ok){
-      const nome = (j.nome||'').toString();
-      const vip = (j.numero||'').toString();
-      const val = (j.validade||'').toString();
-      setStatus(`Carteirinha válida — ${vip} — ${nome} — válido até ${val}`,'ok');
-    }else{
-      setStatus(j.msg || 'Não encontrado.','bad');
+    function hideBoxes(){ $("statusBox").style.display = "none"; $("histBox").style.display = "none"; }
+    function flash(txt, isErr){ msg.textContent = txt||""; msg.className = isErr ? "bad" : "muted"; }
+    function fmtDate(d){
+      if(!d) return "—";
+      try{
+        const x = (d instanceof Date) ? d : new Date(d);
+        if (isNaN(x)) return String(d);
+        return x.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});
+      }catch(_){ return String(d); }
     }
-  }catch(e){
-    setStatus('Falha de rede: '+e.message,'bad');
-  }finally{
-    $('#btnStatus').disabled = false;
-  }
-}
-
-/* ========= REGISTRO ========= */
-async function registrar(){
-  setMsg(' ','muted');
-  const pin = $('#pin').value.trim();
-  const token = extractTokenOrVip($('#vip').value);
-  const oferta = $('#oferta').value;
-  const atendente = $('#atendente').value.trim();
-  const obs = $('#obs').value.trim();
-
-  if(!pin){ setMsg('Informe o PIN do parceiro.','bad'); return; }
-  if(!token){ setMsg('Informe o VIP ou Token.','bad'); return; }
-  if(!oferta){ setMsg('Selecione uma oferta.','bad'); return; }
-
-  $('#btnReg').disabled = true;
-  setMsg('Registrando...','muted');
-  try{
-    const body = new URLSearchParams({
-      action: 'salvar',               // <<< AQUI! seu Apps Script espera "salvar"
-      parceiro: parceiroID,
-      pin, token, oferta, atendente, obs
-    });
-    const r = await fetch(API, {
-      method:'POST',
-      headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body
-    });
-    const j = await r.json();
-    if(j.ok){
-      setMsg('OK: consumo registrado.','ok');
-      $('#obs').value='';
-    }else{
-      setMsg(j.msg || 'Erro ao registrar.','bad');
-    }
-  }catch(e){
-    setMsg('Falha de rede: '+e.message,'bad');
-  }finally{
-    $('#btnReg').disabled = false;
-  }
-}
-
-/* ========= WIRES ========= */
-$('#btnStatus').addEventListener('click', consultarStatus);
-$('#btnReg').addEventListener('click', registrar);
-if(qs.get('vip')) $('#vip').value = qs.get('vip');
-loadOfertas();
-setStatus('—');
-</script>
+    function escapeHtml(s){ return String(s||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+  </script>
 </body>
 </html>
